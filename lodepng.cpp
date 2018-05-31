@@ -224,48 +224,6 @@ static unsigned ucvector_push_back(ucvector* p, unsigned char c)
 
 //  ////////////////////////////////////////////////////////////////////////// 
 
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-// returns 1 if success, 0 if failure ==> nothing done
-static unsigned string_resize(char** out, size_t size)
-{
-  char* data = (char*)realloc(*out, size + 1);
-  if(data)
-  {
-    data[size] = 0; // null termination char
-    *out = data;
-  }
-  return data != 0;
-}
-
-// init a {char*, size_t} pair for use as string
-static void string_init(char** out)
-{
-  *out = NULL;
-  string_resize(out, 0);
-}
-
-// free the above pair again
-static void string_cleanup(char** out)
-{
-  free(*out);
-  *out = NULL;
-}
-
-static void string_set(char** out, const char* in)
-{
-  size_t insize = strlen(in), i;
-  if(string_resize(out, insize))
-  {
-    for(i = 0; i != insize; ++i)
-    {
-      (*out)[i] = in[i];
-    }
-  }
-}
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
-
-//  ////////////////////////////////////////////////////////////////////////// 
-
 unsigned lodepng_read32bitInt(const unsigned char* buffer)
 {
   return (unsigned)((buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3]);
@@ -2603,220 +2561,17 @@ static size_t lodepng_get_raw_size_idat(unsigned w, unsigned h, const LodePNGCol
   return h * line;
 }
 
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-
-static void LodePNGUnknownChunks_init(LodePNGInfo* info)
-{
-  unsigned i;
-  for(i = 0; i != 3; ++i) info->unknown_chunks_data[i] = 0;
-  for(i = 0; i != 3; ++i) info->unknown_chunks_size[i] = 0;
-}
-
-static void LodePNGUnknownChunks_cleanup(LodePNGInfo* info)
-{
-  unsigned i;
-  for(i = 0; i != 3; ++i) free(info->unknown_chunks_data[i]);
-}
-
-static unsigned LodePNGUnknownChunks_copy(LodePNGInfo* dest, const LodePNGInfo* src)
-{
-  unsigned i;
-
-  LodePNGUnknownChunks_cleanup(dest);
-
-  for(i = 0; i != 3; ++i)
-  {
-    size_t j;
-    dest->unknown_chunks_size[i] = src->unknown_chunks_size[i];
-    dest->unknown_chunks_data[i] = (unsigned char*)malloc(src->unknown_chunks_size[i]);
-    if(!dest->unknown_chunks_data[i] && dest->unknown_chunks_size[i]) return 83; // alloc fail
-    for(j = 0; j < src->unknown_chunks_size[i]; ++j)
-    {
-      dest->unknown_chunks_data[i][j] = src->unknown_chunks_data[i][j];
-    }
-  }
-
-  return 0;
-}
-
-// ****************************************************************************
-
-static void LodePNGText_init(LodePNGInfo* info)
-{
-  info->text_num = 0;
-  info->text_keys = NULL;
-  info->text_strings = NULL;
-}
-
-static void LodePNGText_cleanup(LodePNGInfo* info)
-{
-  size_t i;
-  for(i = 0; i != info->text_num; ++i)
-  {
-    string_cleanup(&info->text_keys[i]);
-    string_cleanup(&info->text_strings[i]);
-  }
-  free(info->text_keys);
-  free(info->text_strings);
-}
-
-static unsigned LodePNGText_copy(LodePNGInfo* dest, const LodePNGInfo* source)
-{
-  size_t i = 0;
-  dest->text_keys = 0;
-  dest->text_strings = 0;
-  dest->text_num = 0;
-  for(i = 0; i != source->text_num; ++i)
-  {
-    CERROR_TRY_RETURN(lodepng_add_text(dest, source->text_keys[i], source->text_strings[i]));
-  }
-  return 0;
-}
-
-void lodepng_clear_text(LodePNGInfo* info)
-{
-  LodePNGText_cleanup(info);
-}
-
-unsigned lodepng_add_text(LodePNGInfo* info, const char* key, const char* str)
-{
-  char** new_keys = (char**)(realloc(info->text_keys, sizeof(char*) * (info->text_num + 1)));
-  char** new_strings = (char**)(realloc(info->text_strings, sizeof(char*) * (info->text_num + 1)));
-  if(!new_keys || !new_strings)
-  {
-    free(new_keys);
-    free(new_strings);
-    return 83; // alloc fail
-  }
-
-  ++info->text_num;
-  info->text_keys = new_keys;
-  info->text_strings = new_strings;
-
-  string_init(&info->text_keys[info->text_num - 1]);
-  string_set(&info->text_keys[info->text_num - 1], key);
-
-  string_init(&info->text_strings[info->text_num - 1]);
-  string_set(&info->text_strings[info->text_num - 1], str);
-
-  return 0;
-}
-
-// ****************************************************************************
-
-static void LodePNGIText_init(LodePNGInfo* info)
-{
-  info->itext_num = 0;
-  info->itext_keys = NULL;
-  info->itext_langtags = NULL;
-  info->itext_transkeys = NULL;
-  info->itext_strings = NULL;
-}
-
-static void LodePNGIText_cleanup(LodePNGInfo* info)
-{
-  size_t i;
-  for(i = 0; i != info->itext_num; ++i)
-  {
-    string_cleanup(&info->itext_keys[i]);
-    string_cleanup(&info->itext_langtags[i]);
-    string_cleanup(&info->itext_transkeys[i]);
-    string_cleanup(&info->itext_strings[i]);
-  }
-  free(info->itext_keys);
-  free(info->itext_langtags);
-  free(info->itext_transkeys);
-  free(info->itext_strings);
-}
-
-static unsigned LodePNGIText_copy(LodePNGInfo* dest, const LodePNGInfo* source)
-{
-  size_t i = 0;
-  dest->itext_keys = 0;
-  dest->itext_langtags = 0;
-  dest->itext_transkeys = 0;
-  dest->itext_strings = 0;
-  dest->itext_num = 0;
-  for(i = 0; i != source->itext_num; ++i)
-  {
-    CERROR_TRY_RETURN(lodepng_add_itext(dest, source->itext_keys[i], source->itext_langtags[i],
-                                        source->itext_transkeys[i], source->itext_strings[i]));
-  }
-  return 0;
-}
-
-void lodepng_clear_itext(LodePNGInfo* info)
-{
-  LodePNGIText_cleanup(info);
-}
-
-unsigned lodepng_add_itext(LodePNGInfo* info, const char* key, const char* langtag,
-                           const char* transkey, const char* str)
-{
-  char** new_keys = (char**)(realloc(info->itext_keys, sizeof(char*) * (info->itext_num + 1)));
-  char** new_langtags = (char**)(realloc(info->itext_langtags, sizeof(char*) * (info->itext_num + 1)));
-  char** new_transkeys = (char**)(realloc(info->itext_transkeys, sizeof(char*) * (info->itext_num + 1)));
-  char** new_strings = (char**)(realloc(info->itext_strings, sizeof(char*) * (info->itext_num + 1)));
-  if(!new_keys || !new_langtags || !new_transkeys || !new_strings)
-  {
-    free(new_keys);
-    free(new_langtags);
-    free(new_transkeys);
-    free(new_strings);
-    return 83; // alloc fail
-  }
-
-  ++info->itext_num;
-  info->itext_keys = new_keys;
-  info->itext_langtags = new_langtags;
-  info->itext_transkeys = new_transkeys;
-  info->itext_strings = new_strings;
-
-  string_init(&info->itext_keys[info->itext_num - 1]);
-  string_set(&info->itext_keys[info->itext_num - 1], key);
-
-  string_init(&info->itext_langtags[info->itext_num - 1]);
-  string_set(&info->itext_langtags[info->itext_num - 1], langtag);
-
-  string_init(&info->itext_transkeys[info->itext_num - 1]);
-  string_set(&info->itext_transkeys[info->itext_num - 1], transkey);
-
-  string_init(&info->itext_strings[info->itext_num - 1]);
-  string_set(&info->itext_strings[info->itext_num - 1], str);
-
-  return 0;
-}
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
-
 void lodepng_info_init(LodePNGInfo* info)
 {
   lodepng_color_mode_init(&info->color);
   info->interlace_method = 0;
   info->compression_method = 0;
   info->filter_method = 0;
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-  info->background_defined = 0;
-  info->background_r = info->background_g = info->background_b = 0;
-
-  LodePNGText_init(info);
-  LodePNGIText_init(info);
-
-  info->time_defined = 0;
-  info->phys_defined = 0;
-
-  LodePNGUnknownChunks_init(info);
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
 }
 
 void lodepng_info_cleanup(LodePNGInfo* info)
 {
   lodepng_color_mode_cleanup(&info->color);
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-  LodePNGText_cleanup(info);
-  LodePNGIText_cleanup(info);
-
-  LodePNGUnknownChunks_cleanup(info);
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
 }
 
 unsigned lodepng_info_copy(LodePNGInfo* dest, const LodePNGInfo* source)
@@ -2826,13 +2581,6 @@ unsigned lodepng_info_copy(LodePNGInfo* dest, const LodePNGInfo* source)
   lodepng_color_mode_init(&dest->color);
   CERROR_TRY_RETURN(lodepng_color_mode_copy(&dest->color, &source->color));
 
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-  CERROR_TRY_RETURN(LodePNGText_copy(dest, source));
-  CERROR_TRY_RETURN(LodePNGIText_copy(dest, source));
-
-  LodePNGUnknownChunks_init(dest);
-  CERROR_TRY_RETURN(LodePNGUnknownChunks_copy(dest, source));
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
   return 0;
 }
 
@@ -4141,254 +3889,6 @@ static unsigned readChunk_tRNS(LodePNGColorMode* color, const unsigned char* dat
 }
 
 
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-// background color chunk (bKGD)
-static unsigned readChunk_bKGD(LodePNGInfo* info, const unsigned char* data, size_t chunkLength)
-{
-  if(info->color.colortype == LCT_PALETTE)
-  {
-    // error: this chunk must be 1 byte for indexed color image
-    if(chunkLength != 1) return 43;
-
-    info->background_defined = 1;
-    info->background_r = info->background_g = info->background_b = data[0];
-  }
-  else if(info->color.colortype == LCT_GREY || info->color.colortype == LCT_GREY_ALPHA)
-  {
-    // error: this chunk must be 2 bytes for greyscale image
-    if(chunkLength != 2) return 44;
-
-    info->background_defined = 1;
-    info->background_r = info->background_g = info->background_b = 256u * data[0] + data[1];
-  }
-  else if(info->color.colortype == LCT_RGB || info->color.colortype == LCT_RGBA)
-  {
-    // error: this chunk must be 6 bytes for greyscale image
-    if(chunkLength != 6) return 45;
-
-    info->background_defined = 1;
-    info->background_r = 256u * data[0] + data[1];
-    info->background_g = 256u * data[2] + data[3];
-    info->background_b = 256u * data[4] + data[5];
-  }
-
-  return 0; //  OK 
-}
-
-// text chunk (tEXt)
-static unsigned readChunk_tEXt(LodePNGInfo* info, const unsigned char* data, size_t chunkLength)
-{
-  unsigned error = 0;
-  char *key = 0, *str = 0;
-  unsigned i;
-
-  while(!error) // not really a while loop, only used to break on error
-  {
-    unsigned length, string2_begin;
-
-    length = 0;
-    while(length < chunkLength && data[length] != 0) ++length;
-    /*even though it's not allowed by the standard, no error is thrown if
-    there's no null termination char, if the text is empty*/
-    if(length < 1 || length > 79) CERROR_BREAK(error, 89); // keyword too short or long
-
-    key = (char*)malloc(length + 1);
-    if(!key) CERROR_BREAK(error, 83); // alloc fail
-
-    key[length] = 0;
-    for(i = 0; i != length; ++i) key[i] = (char)data[i];
-
-    string2_begin = length + 1; // skip keyword null terminator
-
-    length = (unsigned)(chunkLength < string2_begin ? 0 : chunkLength - string2_begin);
-    str = (char*)malloc(length + 1);
-    if(!str) CERROR_BREAK(error, 83); // alloc fail
-
-    str[length] = 0;
-    for(i = 0; i != length; ++i) str[i] = (char)data[string2_begin + i];
-
-    error = lodepng_add_text(info, key, str);
-
-    break;
-  }
-
-  free(key);
-  free(str);
-
-  return error;
-}
-
-// compressed text chunk (zTXt)
-static unsigned readChunk_zTXt(LodePNGInfo* info, const LodePNGDecompressSettings* zlibsettings,
-                               const unsigned char* data, size_t chunkLength)
-{
-  unsigned error = 0;
-  unsigned i;
-
-  unsigned length, string2_begin;
-  char *key = 0;
-  ucvector decoded;
-
-  ucvector_init(&decoded);
-
-  while(!error) // not really a while loop, only used to break on error
-  {
-    for(length = 0; length < chunkLength && data[length] != 0; ++length) ;
-    if(length + 2 >= chunkLength) CERROR_BREAK(error, 75); // no null termination, corrupt?
-    if(length < 1 || length > 79) CERROR_BREAK(error, 89); // keyword too short or long
-
-    key = (char*)malloc(length + 1);
-    if(!key) CERROR_BREAK(error, 83); // alloc fail
-
-    key[length] = 0;
-    for(i = 0; i != length; ++i) key[i] = (char)data[i];
-
-    if(data[length + 1] != 0) CERROR_BREAK(error, 72); // the 0 byte indicating compression must be 0
-
-    string2_begin = length + 2;
-    if(string2_begin > chunkLength) CERROR_BREAK(error, 75); // no null termination, corrupt?
-
-    length = (unsigned)chunkLength - string2_begin;
-    // will fail if zlib error, e.g. if length is too small
-    error = zlib_decompress(&decoded.data, &decoded.size,
-                            (unsigned char*)(&data[string2_begin]),
-                            length, zlibsettings);
-    if(error) break;
-    ucvector_push_back(&decoded, 0);
-
-    error = lodepng_add_text(info, key, (char*)decoded.data);
-
-    break;
-  }
-
-  free(key);
-  ucvector_cleanup(&decoded);
-
-  return error;
-}
-
-// international text chunk (iTXt)
-static unsigned readChunk_iTXt(LodePNGInfo* info, const LodePNGDecompressSettings* zlibsettings,
-                               const unsigned char* data, size_t chunkLength)
-{
-  unsigned error = 0;
-  unsigned i;
-
-  unsigned length, begin, compressed;
-  char *key = 0, *langtag = 0, *transkey = 0;
-  ucvector decoded;
-  ucvector_init(&decoded);
-
-  while(!error) // not really a while loop, only used to break on error
-  {
-    /*Quick check if the chunk length isn't too small. Even without check
-    it'd still fail with other error checks below if it's too short. This just gives a different error code.*/
-    if(chunkLength < 5) CERROR_BREAK(error, 30); // iTXt chunk too short
-
-    // read the key
-    for(length = 0; length < chunkLength && data[length] != 0; ++length) ;
-    if(length + 3 >= chunkLength) CERROR_BREAK(error, 75); // no null termination char, corrupt?
-    if(length < 1 || length > 79) CERROR_BREAK(error, 89); // keyword too short or long
-
-    key = (char*)malloc(length + 1);
-    if(!key) CERROR_BREAK(error, 83); // alloc fail
-
-    key[length] = 0;
-    for(i = 0; i != length; ++i) key[i] = (char)data[i];
-
-    // read the compression method
-    compressed = data[length + 1];
-    if(data[length + 2] != 0) CERROR_BREAK(error, 72); // the 0 byte indicating compression must be 0
-
-    /*even though it's not allowed by the standard, no error is thrown if
-    there's no null termination char, if the text is empty for the next 3 texts*/
-
-    // read the langtag
-    begin = length + 3;
-    length = 0;
-    for(i = begin; i < chunkLength && data[i] != 0; ++i) ++length;
-
-    langtag = (char*)malloc(length + 1);
-    if(!langtag) CERROR_BREAK(error, 83); // alloc fail
-
-    langtag[length] = 0;
-    for(i = 0; i != length; ++i) langtag[i] = (char)data[begin + i];
-
-    // read the transkey
-    begin += length + 1;
-    length = 0;
-    for(i = begin; i < chunkLength && data[i] != 0; ++i) ++length;
-
-    transkey = (char*)malloc(length + 1);
-    if(!transkey) CERROR_BREAK(error, 83); // alloc fail
-
-    transkey[length] = 0;
-    for(i = 0; i != length; ++i) transkey[i] = (char)data[begin + i];
-
-    // read the actual text
-    begin += length + 1;
-
-    length = (unsigned)chunkLength < begin ? 0 : (unsigned)chunkLength - begin;
-
-    if(compressed)
-    {
-      // will fail if zlib error, e.g. if length is too small
-      error = zlib_decompress(&decoded.data, &decoded.size,
-                              (unsigned char*)(&data[begin]),
-                              length, zlibsettings);
-      if(error) break;
-      if(decoded.allocsize < decoded.size) decoded.allocsize = decoded.size;
-      ucvector_push_back(&decoded, 0);
-    }
-    else
-    {
-      if(!ucvector_resize(&decoded, length + 1)) CERROR_BREAK(error, 83 /*alloc fail*/);
-
-      decoded.data[length] = 0;
-      for(i = 0; i != length; ++i) decoded.data[i] = data[begin + i];
-    }
-
-    error = lodepng_add_itext(info, key, langtag, transkey, (char*)decoded.data);
-
-    break;
-  }
-
-  free(key);
-  free(langtag);
-  free(transkey);
-  ucvector_cleanup(&decoded);
-
-  return error;
-}
-
-static unsigned readChunk_tIME(LodePNGInfo* info, const unsigned char* data, size_t chunkLength)
-{
-  if(chunkLength != 7) return 73; // invalid tIME chunk size
-
-  info->time_defined = 1;
-  info->time.year = 256u * data[0] + data[1];
-  info->time.month = data[2];
-  info->time.day = data[3];
-  info->time.hour = data[4];
-  info->time.minute = data[5];
-  info->time.second = data[6];
-
-  return 0; //  OK 
-}
-
-static unsigned readChunk_pHYs(LodePNGInfo* info, const unsigned char* data, size_t chunkLength)
-{
-  if(chunkLength != 9) return 74; // invalid pHYs chunk size
-
-  info->phys_defined = 1;
-  info->phys_x = 16777216u * data[0] + 65536u * data[1] + 256u * data[2] + data[3];
-  info->phys_y = 16777216u * data[4] + 65536u * data[5] + 256u * data[6] + data[7];
-  info->phys_unit = data[8];
-
-  return 0; //  OK 
-}
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
-
 // read a PNG, the result will be in the same color type as the PNG (hence "generic")
 static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
                           LodePNGState* state,
@@ -4405,9 +3905,6 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
 
   // for unknown chunk order
   unsigned unknown = 0;
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-  unsigned critical_pos = 1; // 1 = after IHDR, 2 = after PLTE, 3 = after IDAT
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
 
   // provide some proper output values if error will happen
   *out = 0;
@@ -4462,9 +3959,6 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
       size_t oldsize = idat.size;
       if(!ucvector_resize(&idat, oldsize + chunkLength)) CERROR_BREAK(state->error, 83 /*alloc fail*/);
       for(i = 0; i != chunkLength; ++i) idat.data[oldsize + i] = data[i];
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-      critical_pos = 3;
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
     }
     // IEND chunk
     else if(lodepng_chunk_type_equals(chunk, "IEND"))
@@ -4476,9 +3970,6 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
     {
       state->error = readChunk_PLTE(&state->info_png.color, data, chunkLength);
       if(state->error) break;
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-      critical_pos = 2;
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
     }
     // palette transparency chunk (tRNS)
     else if(lodepng_chunk_type_equals(chunk, "tRNS"))
@@ -4486,51 +3977,6 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
       state->error = readChunk_tRNS(&state->info_png.color, data, chunkLength);
       if(state->error) break;
     }
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-    // background color chunk (bKGD)
-    else if(lodepng_chunk_type_equals(chunk, "bKGD"))
-    {
-      state->error = readChunk_bKGD(&state->info_png, data, chunkLength);
-      if(state->error) break;
-    }
-    // text chunk (tEXt)
-    else if(lodepng_chunk_type_equals(chunk, "tEXt"))
-    {
-      if(state->decoder.read_text_chunks)
-      {
-        state->error = readChunk_tEXt(&state->info_png, data, chunkLength);
-        if(state->error) break;
-      }
-    }
-    // compressed text chunk (zTXt)
-    else if(lodepng_chunk_type_equals(chunk, "zTXt"))
-    {
-      if(state->decoder.read_text_chunks)
-      {
-        state->error = readChunk_zTXt(&state->info_png, &state->decoder.zlibsettings, data, chunkLength);
-        if(state->error) break;
-      }
-    }
-    // international text chunk (iTXt)
-    else if(lodepng_chunk_type_equals(chunk, "iTXt"))
-    {
-      if(state->decoder.read_text_chunks)
-      {
-        state->error = readChunk_iTXt(&state->info_png, &state->decoder.zlibsettings, data, chunkLength);
-        if(state->error) break;
-      }
-    }
-    else if(lodepng_chunk_type_equals(chunk, "tIME"))
-    {
-      state->error = readChunk_tIME(&state->info_png, data, chunkLength);
-      if(state->error) break;
-    }
-    else if(lodepng_chunk_type_equals(chunk, "pHYs"))
-    {
-      state->error = readChunk_pHYs(&state->info_png, data, chunkLength);
-      if(state->error) break;
-    }
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
     else // it's not an implemented chunk type, so ignore it: skip over the data
     {
       // error: unknown critical chunk (5th bit of first byte of chunk type is 0)
@@ -4540,14 +3986,6 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
       }
 
       unknown = 1;
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-      if(state->decoder.remember_unknown_chunks)
-      {
-        state->error = lodepng_chunk_append(&state->info_png.unknown_chunks_data[critical_pos - 1],
-                                            &state->info_png.unknown_chunks_size[critical_pos - 1], chunk);
-        if(state->error) break;
-      }
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
     }
 
     if(!state->decoder.ignore_crc && !unknown) // check CRC if wanted, only on known chunk types
@@ -4695,10 +4133,6 @@ unsigned lodepng_decode24_file(unsigned char** out, unsigned* w, unsigned* h, co
 void lodepng_decoder_settings_init(LodePNGDecoderSettings* settings)
 {
   settings->color_convert = 1;
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-  settings->read_text_chunks = 1;
-  settings->remember_unknown_chunks = 0;
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
   settings->ignore_crc = 0;
   settings->ignore_critical = 0;
   settings->ignore_end = 0;
@@ -4861,157 +4295,6 @@ static unsigned addChunk_IEND(ucvector* out)
   error = addChunk(out, "IEND", 0, 0);
   return error;
 }
-
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-
-static unsigned addChunk_tEXt(ucvector* out, const char* keyword, const char* textstring)
-{
-  unsigned error = 0;
-  size_t i;
-  ucvector text;
-  ucvector_init(&text);
-  for(i = 0; keyword[i] != 0; ++i) ucvector_push_back(&text, (unsigned char)keyword[i]);
-  if(i < 1 || i > 79) return 89; // error: invalid keyword size
-  ucvector_push_back(&text, 0); // 0 termination char
-  for(i = 0; textstring[i] != 0; ++i) ucvector_push_back(&text, (unsigned char)textstring[i]);
-  error = addChunk(out, "tEXt", text.data, text.size);
-  ucvector_cleanup(&text);
-
-  return error;
-}
-
-static unsigned addChunk_zTXt(ucvector* out, const char* keyword, const char* textstring,
-                              LodePNGCompressSettings* zlibsettings)
-{
-  unsigned error = 0;
-  ucvector data, compressed;
-  size_t i, textsize = strlen(textstring);
-
-  ucvector_init(&data);
-  ucvector_init(&compressed);
-  for(i = 0; keyword[i] != 0; ++i) ucvector_push_back(&data, (unsigned char)keyword[i]);
-  if(i < 1 || i > 79) return 89; // error: invalid keyword size
-  ucvector_push_back(&data, 0); // 0 termination char
-  ucvector_push_back(&data, 0); // compression method: 0
-
-  error = zlib_compress(&compressed.data, &compressed.size,
-                        (unsigned char*)textstring, textsize, zlibsettings);
-  if(!error)
-  {
-    for(i = 0; i != compressed.size; ++i) ucvector_push_back(&data, compressed.data[i]);
-    error = addChunk(out, "zTXt", data.data, data.size);
-  }
-
-  ucvector_cleanup(&compressed);
-  ucvector_cleanup(&data);
-  return error;
-}
-
-static unsigned addChunk_iTXt(ucvector* out, unsigned compressed, const char* keyword, const char* langtag,
-                              const char* transkey, const char* textstring, LodePNGCompressSettings* zlibsettings)
-{
-  unsigned error = 0;
-  ucvector data;
-  size_t i, textsize = strlen(textstring);
-
-  ucvector_init(&data);
-
-  for(i = 0; keyword[i] != 0; ++i) ucvector_push_back(&data, (unsigned char)keyword[i]);
-  if(i < 1 || i > 79) return 89; // error: invalid keyword size
-  ucvector_push_back(&data, 0); // null termination char
-  ucvector_push_back(&data, compressed ? 1 : 0); // compression flag
-  ucvector_push_back(&data, 0); // compression method
-  for(i = 0; langtag[i] != 0; ++i) ucvector_push_back(&data, (unsigned char)langtag[i]);
-  ucvector_push_back(&data, 0); // null termination char
-  for(i = 0; transkey[i] != 0; ++i) ucvector_push_back(&data, (unsigned char)transkey[i]);
-  ucvector_push_back(&data, 0); // null termination char
-
-  if(compressed)
-  {
-    ucvector compressed_data;
-    ucvector_init(&compressed_data);
-    error = zlib_compress(&compressed_data.data, &compressed_data.size,
-                          (unsigned char*)textstring, textsize, zlibsettings);
-    if(!error)
-    {
-      for(i = 0; i != compressed_data.size; ++i) ucvector_push_back(&data, compressed_data.data[i]);
-    }
-    ucvector_cleanup(&compressed_data);
-  }
-  else // not compressed
-  {
-    for(i = 0; textstring[i] != 0; ++i) ucvector_push_back(&data, (unsigned char)textstring[i]);
-  }
-
-  if(!error) error = addChunk(out, "iTXt", data.data, data.size);
-  ucvector_cleanup(&data);
-  return error;
-}
-
-static unsigned addChunk_bKGD(ucvector* out, const LodePNGInfo* info)
-{
-  unsigned error = 0;
-  ucvector bKGD;
-  ucvector_init(&bKGD);
-  if(info->color.colortype == LCT_GREY || info->color.colortype == LCT_GREY_ALPHA)
-  {
-    ucvector_push_back(&bKGD, (unsigned char)(info->background_r >> 8));
-    ucvector_push_back(&bKGD, (unsigned char)(info->background_r & 255));
-  }
-  else if(info->color.colortype == LCT_RGB || info->color.colortype == LCT_RGBA)
-  {
-    ucvector_push_back(&bKGD, (unsigned char)(info->background_r >> 8));
-    ucvector_push_back(&bKGD, (unsigned char)(info->background_r & 255));
-    ucvector_push_back(&bKGD, (unsigned char)(info->background_g >> 8));
-    ucvector_push_back(&bKGD, (unsigned char)(info->background_g & 255));
-    ucvector_push_back(&bKGD, (unsigned char)(info->background_b >> 8));
-    ucvector_push_back(&bKGD, (unsigned char)(info->background_b & 255));
-  }
-  else if(info->color.colortype == LCT_PALETTE)
-  {
-    ucvector_push_back(&bKGD, (unsigned char)(info->background_r & 255)); // palette index
-  }
-
-  error = addChunk(out, "bKGD", bKGD.data, bKGD.size);
-  ucvector_cleanup(&bKGD);
-
-  return error;
-}
-
-static unsigned addChunk_tIME(ucvector* out, const LodePNGTime* time)
-{
-  unsigned error = 0;
-  unsigned char* data = (unsigned char*)malloc(7);
-  if(!data) return 83; // alloc fail
-  data[0] = (unsigned char)(time->year >> 8);
-  data[1] = (unsigned char)(time->year & 255);
-  data[2] = (unsigned char)time->month;
-  data[3] = (unsigned char)time->day;
-  data[4] = (unsigned char)time->hour;
-  data[5] = (unsigned char)time->minute;
-  data[6] = (unsigned char)time->second;
-  error = addChunk(out, "tIME", data, 7);
-  free(data);
-  return error;
-}
-
-static unsigned addChunk_pHYs(ucvector* out, const LodePNGInfo* info)
-{
-  unsigned error = 0;
-  ucvector data;
-  ucvector_init(&data);
-
-  lodepng_add32bitInt(&data, info->phys_x);
-  lodepng_add32bitInt(&data, info->phys_y);
-  ucvector_push_back(&data, info->phys_unit);
-
-  error = addChunk(out, "pHYs", data.data, data.size);
-  ucvector_cleanup(&data);
-
-  return error;
-}
-
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
 
 static void filterScanline(unsigned char* out, const unsigned char* scanline, const unsigned char* prevline,
                            size_t length, size_t bytewidth, unsigned char filterType)
@@ -5495,20 +4778,6 @@ static unsigned getPaletteTranslucency(const unsigned char* palette, size_t pale
   return key;
 }
 
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-static unsigned addUnknownChunks(ucvector* out, unsigned char* data, size_t datasize)
-{
-  unsigned char* inchunk = data;
-  while((size_t)(inchunk - data) < datasize)
-  {
-    CERROR_TRY_RETURN(lodepng_chunk_append(&out->data, &out->size, inchunk));
-    out->allocsize = out->size; // fix the allocsize again
-    inchunk = lodepng_chunk_next(inchunk);
-  }
-  return 0;
-}
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
-
 unsigned lodepng_encode(unsigned char** out, size_t* outsize,
                         const unsigned char* image, unsigned w, unsigned h,
                         LodePNGState* state)
@@ -5572,21 +4841,10 @@ unsigned lodepng_encode(unsigned char** out, size_t* outsize,
   ucvector_init(&outv);
   while(!state->error) // while only executed once, to break on error
   {
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-    size_t i;
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
     // write signature and chunks
     writeSignature(&outv);
     // IHDR
     addChunk_IHDR(&outv, w, h, info.color.colortype, info.color.bitdepth, info.interlace_method);
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-    // unknown chunks between IHDR and PLTE
-    if(info.unknown_chunks_data[0])
-    {
-      state->error = addUnknownChunks(&outv, info.unknown_chunks_data[0], info.unknown_chunks_size[0]);
-      if(state->error) break;
-    }
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
     // PLTE
     if(info.color.colortype == LCT_PALETTE)
     {
@@ -5605,89 +4863,9 @@ unsigned lodepng_encode(unsigned char** out, size_t* outsize,
     {
       addChunk_tRNS(&outv, &info.color);
     }
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-    // bKGD (must come between PLTE and the IDAt chunks
-    if(info.background_defined) addChunk_bKGD(&outv, &info);
-    // pHYs (must come before the IDAT chunks)
-    if(info.phys_defined) addChunk_pHYs(&outv, &info);
-
-    // unknown chunks between PLTE and IDAT
-    if(info.unknown_chunks_data[1])
-    {
-      state->error = addUnknownChunks(&outv, info.unknown_chunks_data[1], info.unknown_chunks_size[1]);
-      if(state->error) break;
-    }
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
     // IDAT (multiple IDAT chunks must be consecutive)
     state->error = addChunk_IDAT(&outv, data, datasize, &state->encoder.zlibsettings);
     if(state->error) break;
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-    // tIME
-    if(info.time_defined) addChunk_tIME(&outv, &info.time);
-    // tEXt and/or zTXt
-    for(i = 0; i != info.text_num; ++i)
-    {
-      if(strlen(info.text_keys[i]) > 79)
-      {
-        state->error = 66; // text chunk too large
-        break;
-      }
-      if(strlen(info.text_keys[i]) < 1)
-      {
-        state->error = 67; // text chunk too small
-        break;
-      }
-      if(state->encoder.text_compression)
-      {
-        addChunk_zTXt(&outv, info.text_keys[i], info.text_strings[i], &state->encoder.zlibsettings);
-      }
-      else
-      {
-        addChunk_tEXt(&outv, info.text_keys[i], info.text_strings[i]);
-      }
-    }
-    // LodePNG version id in text chunk
-    if(state->encoder.add_id)
-    {
-      unsigned alread_added_id_text = 0;
-      for(i = 0; i != info.text_num; ++i)
-      {
-        if(!strcmp(info.text_keys[i], "LodePNG"))
-        {
-          alread_added_id_text = 1;
-          break;
-        }
-      }
-      if(alread_added_id_text == 0)
-      {
-        addChunk_tEXt(&outv, "LodePNG", LODEPNG_VERSION_STRING); // it's shorter as tEXt than as zTXt chunk
-      }
-    }
-    // iTXt
-    for(i = 0; i != info.itext_num; ++i)
-    {
-      if(strlen(info.itext_keys[i]) > 79)
-      {
-        state->error = 66; // text chunk too large
-        break;
-      }
-      if(strlen(info.itext_keys[i]) < 1)
-      {
-        state->error = 67; // text chunk too small
-        break;
-      }
-      addChunk_iTXt(&outv, state->encoder.text_compression,
-                    info.itext_keys[i], info.itext_langtags[i], info.itext_transkeys[i], info.itext_strings[i],
-                    &state->encoder.zlibsettings);
-    }
-
-    // unknown chunks between IDAT and IEND
-    if(info.unknown_chunks_data[2])
-    {
-      state->error = addUnknownChunks(&outv, info.unknown_chunks_data[2], info.unknown_chunks_size[2]);
-      if(state->error) break;
-    }
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
     addChunk_IEND(&outv);
 
     break; // this isn't really a while loop; no error happened so break out now!
@@ -5757,10 +4935,6 @@ void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings)
   settings->auto_convert = 1;
   settings->force_palette = 0;
   settings->predefined_filters = 0;
-#ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
-  settings->add_id = 0;
-  settings->text_compression = 1;
-#endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
 }
 
 #ifdef LODEPNG_COMPILE_ERROR_TEXT
