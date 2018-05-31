@@ -115,7 +115,6 @@ typedef struct LodePNGCompressSettings LodePNGCompressSettings;
 struct LodePNGCompressSettings // deflate = compress
 {
   // LZ77 related settings
-  unsigned btype; // the block type for LZ (0, 1, 2 or 3, see zlib standard). Should be 2 for proper compression.
   unsigned use_lz77; // whether or not to use LZ77. Should be 1 for proper compression.
   unsigned windowsize; // must be a power of two <= 32768. higher compresses more but is slower. Default value: 2048.
   unsigned minmatch; // minimum lz77 length. 3 is normally best, 6 can be better for some PNGs. Default: 0
@@ -600,9 +599,6 @@ The following settings are supported (some are in sub-structs):
 *) auto_convert: when this option is enabled, the encoder will
 automatically choose the smallest possible color mode (including color key) that
 can encode the colors of all pixels without information loss.
-*) btype: the block type for LZ77. 0 = uncompressed, 1 = fixed huffman tree,
-   2 = dynamic huffman tree (best compression). Should be 2 for proper
-   compression.
 *) use_lz77: whether or not to use LZ77 for compressed block types. Should be
    true for proper compression.
 *) windowsize: the window size used by the LZ77 encoder (1 - 32768). Has value
@@ -1014,7 +1010,6 @@ state.info_png....: no settings for decoder but ouput, see struct LodePNGInfo
 
 For encoding:
 
-state.encoder.zlibsettings.btype: disable compression by setting it to 0
 state.encoder.zlibsettings.use_lz77: use LZ77 in compression
 state.encoder.zlibsettings.windowsize: tweak LZ77 windowsize
 state.encoder.zlibsettings.minmatch: tweak min LZ77 length to match

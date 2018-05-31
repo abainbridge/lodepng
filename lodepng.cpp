@@ -1484,43 +1484,6 @@ static unsigned encodeLZ77(uivector* out, Hash* hash,
 
 //  /////////////////////////////////////////////////////////////////////////// 
 
-static unsigned deflateNoCompression(ucvector* out, const unsigned char* data, size_t datasize)
-{
-  /*non compressed deflate block data: 1 bit BFINAL,2 bits BTYPE,(5 bits): it jumps to start of next byte,
-  2 bytes LEN, 2 bytes NLEN, LEN bytes literal DATA*/
-
-  size_t i, j, numdeflateblocks = (datasize + 65534) / 65535;
-  unsigned datapos = 0;
-  for(i = 0; i != numdeflateblocks; ++i)
-  {
-    unsigned BFINAL, BTYPE, LEN, NLEN;
-    unsigned char firstbyte;
-
-    BFINAL = (i == numdeflateblocks - 1);
-    BTYPE = 0;
-
-    firstbyte = (unsigned char)(BFINAL + ((BTYPE & 1) << 1) + ((BTYPE & 2) << 1));
-    ucvector_push_back(out, firstbyte);
-
-    LEN = 65535;
-    if(datasize - datapos < 65535) LEN = (unsigned)datasize - datapos;
-    NLEN = 65535 - LEN;
-
-    ucvector_push_back(out, (unsigned char)(LEN & 255));
-    ucvector_push_back(out, (unsigned char)(LEN >> 8));
-    ucvector_push_back(out, (unsigned char)(NLEN & 255));
-    ucvector_push_back(out, (unsigned char)(NLEN >> 8));
-
-    // Decompressed data
-    for(j = 0; j < 65535 && datapos < datasize; ++j)
-    {
-      ucvector_push_back(out, data[datapos++]);
-    }
-  }
-
-  return 0;
-}
-
 /*
 write the lz77-encoded data, which has lit, len and dist codes, to compressed stream using huffman trees.
 tree_ll: the tree for lit and len codes.
@@ -1800,54 +1763,6 @@ static unsigned deflateDynamic(ucvector* out, size_t* bp, Hash* hash,
   return error;
 }
 
-static unsigned deflateFixed(ucvector* out, size_t* bp, Hash* hash,
-                             const unsigned char* data,
-                             size_t datapos, size_t dataend,
-                             const LodePNGCompressSettings* settings, unsigned final)
-{
-  HuffmanTree tree_ll; // tree for literal values and length codes
-  HuffmanTree tree_d; // tree for distance codes
-
-  unsigned BFINAL = final;
-  unsigned error = 0;
-  size_t i;
-
-  HuffmanTree_init(&tree_ll);
-  HuffmanTree_init(&tree_d);
-
-  generateFixedLitLenTree(&tree_ll);
-  generateFixedDistanceTree(&tree_d);
-
-  addBitToStream(bp, out, BFINAL);
-  addBitToStream(bp, out, 1); // first bit of BTYPE
-  addBitToStream(bp, out, 0); // second bit of BTYPE
-
-  if(settings->use_lz77) // LZ77 encoded
-  {
-    uivector lz77_encoded;
-    uivector_init(&lz77_encoded);
-    error = encodeLZ77(&lz77_encoded, hash, data, datapos, dataend, settings->windowsize,
-                       settings->minmatch, settings->nicematch, settings->lazymatching);
-    if(!error) writeLZ77data(bp, out, &lz77_encoded, &tree_ll, &tree_d);
-    uivector_cleanup(&lz77_encoded);
-  }
-  else // no LZ77, but still will be Huffman compressed
-  {
-    for(i = datapos; i < dataend; ++i)
-    {
-      addHuffmanSymbol(bp, out, HuffmanTree_getCode(&tree_ll, data[i]), HuffmanTree_getLength(&tree_ll, data[i]));
-    }
-  }
-  // add END code
-  if(!error) addHuffmanSymbol(bp, out, HuffmanTree_getCode(&tree_ll, 256), HuffmanTree_getLength(&tree_ll, 256));
-
-  // cleanup
-  HuffmanTree_cleanup(&tree_ll);
-  HuffmanTree_cleanup(&tree_d);
-
-  return error;
-}
-
 static unsigned lodepng_deflatev(ucvector* out, const unsigned char* in, size_t insize,
                                  const LodePNGCompressSettings* settings)
 {
@@ -1856,16 +1771,10 @@ static unsigned lodepng_deflatev(ucvector* out, const unsigned char* in, size_t 
   size_t bp = 0; // the bit pointer
   Hash hash;
 
-  if(settings->btype > 2) return 61;
-  else if(settings->btype == 0) return deflateNoCompression(out, in, insize);
-  else if(settings->btype == 1) blocksize = insize;
-  else // if(settings->btype == 2)
-  {
-    // on PNGs, deflate blocks of 65-262k seem to give most dense encoding
-    blocksize = insize / 8 + 8;
-    if(blocksize < 65536) blocksize = 65536;
-    if(blocksize > 262144) blocksize = 262144;
-  }
+  // on PNGs, deflate blocks of 65-262k seem to give most dense encoding
+  blocksize = insize / 8 + 8;
+  if(blocksize < 65536) blocksize = 65536;
+  if(blocksize > 262144) blocksize = 262144;
 
   numdeflateblocks = (insize + blocksize - 1) / blocksize;
   if(numdeflateblocks == 0) numdeflateblocks = 1;
@@ -1880,8 +1789,7 @@ static unsigned lodepng_deflatev(ucvector* out, const unsigned char* in, size_t 
     size_t end = start + blocksize;
     if(end > insize) end = insize;
 
-    if(settings->btype == 1) error = deflateFixed(out, &bp, &hash, in, start, end, settings, final);
-    else if(settings->btype == 2) error = deflateDynamic(out, &bp, &hash, in, start, end, settings, final);
+    error = deflateDynamic(out, &bp, &hash, in, start, end, settings, final);
   }
 
   hash_cleanup(&hash);
@@ -2026,7 +1934,6 @@ unsigned lodepng_zlib_compress(unsigned char** out, size_t* outsize, const unsig
 void lodepng_compress_settings_init(LodePNGCompressSettings* settings)
 {
   // compress with dynamic huffman tree (not in the mathematical sense, just not the predefined one)
-  settings->btype = 2;
   settings->use_lz77 = 1;
   settings->windowsize = DEFAULT_WINDOWSIZE;
   settings->minmatch = 3;
@@ -2034,7 +1941,7 @@ void lodepng_compress_settings_init(LodePNGCompressSettings* settings)
   settings->lazymatching = 1;
 }
 
-const LodePNGCompressSettings lodepng_default_compress_settings = {2, 1, DEFAULT_WINDOWSIZE, 3, 128, 1};
+const LodePNGCompressSettings lodepng_default_compress_settings = {1, DEFAULT_WINDOWSIZE, 3, 128, 1};
 
 
 //  ////////////////////////////////////////////////////////////////////////// 
@@ -2088,8 +1995,7 @@ static unsigned lodepng_crc32_table[256] = {
 unsigned lodepng_crc32(const unsigned char* data, size_t length)
 {
   unsigned r = 0xffffffffu;
-  size_t i;
-  for(i = 0; i < length; ++i)
+  for(size_t i = 0; i < length; ++i)
   {
     r = lodepng_crc32_table[(r ^ data[i]) & 0xff] ^ (r >> 8);
   }
@@ -2110,8 +2016,7 @@ static unsigned char readBitFromReversedStream(size_t* bitpointer, const unsigne
 static unsigned readBitsFromReversedStream(size_t* bitpointer, const unsigned char* bitstream, size_t nbits)
 {
   unsigned result = 0;
-  size_t i;
-  for(i = 0 ; i < nbits; ++i)
+  for(size_t i = 0 ; i < nbits; ++i)
   {
     result <<= 1;
     result |= (unsigned)readBitFromReversedStream(bitpointer, bitstream);
@@ -4408,7 +4313,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     to simulate the true case where the tree is the same for the whole image. Sometimes it gives
     better result with dynamic tree anyway. Using the fixed tree sometimes gives worse, but in rare
     cases better compression. It does make this a bit less slow, so it's worth doing this.*/
-    zlibsettings.btype = 1;
     for(type = 0; type != 5; ++type)
     {
       attempt[type] = (unsigned char*)malloc(linebytes);
@@ -4661,10 +4565,6 @@ unsigned lodepng_encode(unsigned char** out, size_t* outsize,
   {
     CERROR_RETURN_ERROR(state->error, 68); // invalid palette size, it is only allowed to be 1-256
   }
-  if(state->encoder.zlibsettings.btype > 2)
-  {
-    CERROR_RETURN_ERROR(state->error, 61); // error: unexisting btype
-  }
   if(state->info_png.interlace_method > 1)
   {
     CERROR_RETURN_ERROR(state->error, 71); // error: unexisting interlace mode
@@ -4862,7 +4762,6 @@ const char* lodepng_error_text(unsigned code)
     case 58: return "invalid ADLER32 encountered (checking ADLER32 can be disabled)";
     case 59: return "requested color conversion not supported";
     case 60: return "invalid window size given in the settings of the encoder (must be 0-32768)";
-    case 61: return "invalid BTYPE given in the settings of the encoder (only 0, 1 and 2 are allowed)";
     // LodePNG leaves the choice of RGB to greyscale conversion formula to the user.
     case 62: return "conversion from color to greyscale not supported";
     case 63: return "length of a chunk too long, max allowed for PNG is 2147483647 bytes per chunk"; // (2^31-1)
