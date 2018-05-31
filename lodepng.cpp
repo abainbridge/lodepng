@@ -378,8 +378,6 @@ static void addBitsToStreamReversed(size_t* bitpointer, ucvector* bitstream, uns
   for(i = 0; i != nbits; ++i) addBitToStream(bitpointer, bitstream, (unsigned char)((value >> (nbits - 1 - i)) & 1));
 }
 
-#ifdef LODEPNG_COMPILE_DECODER
-
 #define READBIT(bitpointer, bitstream) ((bitstream[bitpointer >> 3] >> (bitpointer & 0x7)) & (unsigned char)1)
 
 static unsigned char readBitFromStream(size_t* bitpointer, const unsigned char* bitstream)
@@ -399,7 +397,6 @@ static unsigned readBitsFromStream(size_t* bitpointer, const unsigned char* bits
   }
   return result;
 }
-#endif // LODEPNG_COMPILE_DECODER
 
 //  ////////////////////////////////////////////////////////////////////////// 
 //  / Deflate - Huffman                                                      / 
@@ -602,8 +599,6 @@ static unsigned HuffmanTree_makeFromLengths(HuffmanTree* tree, const unsigned* b
   tree->maxbitlen = maxbitlen;
   return HuffmanTree_makeFromLengths2(tree);
 }
-
-#ifdef LODEPNG_COMPILE_ENCODER
 
 /*BPM: Boundary Package Merge, see "A Fast and Space-Economical Algorithm for Length-Limited Coding",
 Jyrki Katajainen, Alistair Moffat, Andrew Turpin, 1995.*/
@@ -840,7 +835,6 @@ static unsigned HuffmanTree_getLength(const HuffmanTree* tree, unsigned index)
 {
   return tree->lengths[index];
 }
-#endif // LODEPNG_COMPILE_ENCODER
 
 // get the literal and length code tree of a deflated block with fixed tree, as per the deflate specification
 static unsigned generateFixedLitLenTree(HuffmanTree* tree)
@@ -876,8 +870,6 @@ static unsigned generateFixedDistanceTree(HuffmanTree* tree)
   return error;
 }
 
-#ifdef LODEPNG_COMPILE_DECODER
-
 /*
 returns the code, or (unsigned)(-1) if error happened
 inbitlength is the length of the complete buffer, in bits (so its byte length times 8)
@@ -901,9 +893,7 @@ static unsigned huffmanDecodeSymbol(const unsigned char* in, size_t* bp,
     if(treepos >= codetree->numcodes) return (unsigned)(-1); // error: it appeared outside the codetree
   }
 }
-#endif // LODEPNG_COMPILE_DECODER
 
-#ifdef LODEPNG_COMPILE_DECODER
 
 //  ////////////////////////////////////////////////////////////////////////// 
 //  / Inflator (Decompressor)                                                / 
@@ -1244,10 +1234,6 @@ static unsigned inflate(unsigned char** out, size_t* outsize,
     return lodepng_inflate(out, outsize, in, insize, settings);
   }
 }
-
-#endif // LODEPNG_COMPILE_DECODER
-
-#ifdef LODEPNG_COMPILE_ENCODER
 
 //  ////////////////////////////////////////////////////////////////////////// 
 //  / Deflator (Compressor)                                                  / 
@@ -2018,7 +2004,6 @@ static unsigned deflate(unsigned char** out, size_t* outsize,
   }
 }
 
-#endif // LODEPNG_COMPILE_DECODER
 
 //  ////////////////////////////////////////////////////////////////////////// 
 //  / Adler32                                                                  
@@ -2056,8 +2041,6 @@ static unsigned adler32(const unsigned char* data, unsigned len)
 //  ////////////////////////////////////////////////////////////////////////// 
 //  / Zlib                                                                   / 
 //  ////////////////////////////////////////////////////////////////////////// 
-
-#ifdef LODEPNG_COMPILE_DECODER
 
 unsigned lodepng_zlib_decompress(unsigned char** out, size_t* outsize, const unsigned char* in,
                                  size_t insize, const LodePNGDecompressSettings* settings)
@@ -2117,10 +2100,6 @@ static unsigned zlib_decompress(unsigned char** out, size_t* outsize, const unsi
   }
 }
 
-#endif // LODEPNG_COMPILE_DECODER
-
-#ifdef LODEPNG_COMPILE_ENCODER
-
 unsigned lodepng_zlib_compress(unsigned char** out, size_t* outsize, const unsigned char* in,
                                size_t insize, const LodePNGCompressSettings* settings)
 {
@@ -2176,11 +2155,7 @@ static unsigned zlib_compress(unsigned char** out, size_t* outsize, const unsign
   }
 }
 
-#endif // LODEPNG_COMPILE_ENCODER
-
 //  ////////////////////////////////////////////////////////////////////////// 
-
-#ifdef LODEPNG_COMPILE_ENCODER
 
 // this is a good tradeoff between speed and compression ratio
 #define DEFAULT_WINDOWSIZE 2048
@@ -2203,10 +2178,6 @@ void lodepng_compress_settings_init(LodePNGCompressSettings* settings)
 const LodePNGCompressSettings lodepng_default_compress_settings = {2, 1, DEFAULT_WINDOWSIZE, 3, 128, 1, 0, 0, 0};
 
 
-#endif // LODEPNG_COMPILE_ENCODER
-
-#ifdef LODEPNG_COMPILE_DECODER
-
 void lodepng_decompress_settings_init(LodePNGDecompressSettings* settings)
 {
   settings->ignore_adler32 = 0;
@@ -2218,7 +2189,6 @@ void lodepng_decompress_settings_init(LodePNGDecompressSettings* settings)
 
 const LodePNGDecompressSettings lodepng_default_decompress_settings = {0, 0, 0, 0};
 
-#endif // LODEPNG_COMPILE_DECODER
 
 //  ////////////////////////////////////////////////////////////////////////// 
 //  ////////////////////////////////////////////////////////////////////////// 
@@ -2226,14 +2196,11 @@ const LodePNGDecompressSettings lodepng_default_decompress_settings = {0, 0, 0, 
 //  ////////////////////////////////////////////////////////////////////////// 
 //  ////////////////////////////////////////////////////////////////////////// 
 
-#ifdef LODEPNG_COMPILE_PNG
-
 //  ////////////////////////////////////////////////////////////////////////// 
 //  / CRC32                                                                  / 
 //  ////////////////////////////////////////////////////////////////////////// 
 
 
-#ifndef LODEPNG_NO_COMPILE_CRC
 //  CRC polynomial: 0xedb88320 
 static unsigned lodepng_crc32_table[256] = {
            0u, 1996959894u, 3993919788u, 2567524794u,  124634137u, 1886057615u, 3915621685u, 2657392035u,
@@ -2281,13 +2248,10 @@ unsigned lodepng_crc32(const unsigned char* data, size_t length)
   }
   return r ^ 0xffffffffu;
 }
-#else //  !LODEPNG_NO_COMPILE_CRC 
-unsigned lodepng_crc32(const unsigned char* data, size_t length);
-#endif //  !LODEPNG_NO_COMPILE_CRC 
 
-//  ////////////////////////////////////////////////////////////////////////// 
-//  / Reading and writing single bits and bytes from/to stream for LodePNG   / 
-//  ////////////////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////////////////// 
+/// Reading and writing single bits and bytes from/to stream for LodePNG   / 
+//////////////////////////////////////////////////////////////////////////// 
 
 static unsigned char readBitFromReversedStream(size_t* bitpointer, const unsigned char* bitstream)
 {
@@ -2308,7 +2272,6 @@ static unsigned readBitsFromReversedStream(size_t* bitpointer, const unsigned ch
   return result;
 }
 
-#ifdef LODEPNG_COMPILE_DECODER
 static void setBitOfReversedStream0(size_t* bitpointer, unsigned char* bitstream, unsigned char bit)
 {
   // the current bit in bitstream must be 0 for this to work
@@ -2319,7 +2282,6 @@ static void setBitOfReversedStream0(size_t* bitpointer, unsigned char* bitstream
   }
   ++(*bitpointer);
 }
-#endif // LODEPNG_COMPILE_DECODER
 
 static void setBitOfReversedStream(size_t* bitpointer, unsigned char* bitstream, unsigned char bit)
 {
@@ -2632,8 +2594,6 @@ size_t lodepng_get_raw_size_lct(unsigned w, unsigned h, LodePNGColorType colorty
 }
 
 
-#ifdef LODEPNG_COMPILE_PNG
-#ifdef LODEPNG_COMPILE_DECODER
 // in an idat chunk, each scanline is a multiple of 8 bits, unlike the lodepng output buffer
 static size_t lodepng_get_raw_size_idat(unsigned w, unsigned h, const LodePNGColorMode* color)
 {
@@ -2642,8 +2602,6 @@ static size_t lodepng_get_raw_size_idat(unsigned w, unsigned h, const LodePNGCol
   size_t line = ((w / 8) * bpp) + ((w & 7) * bpp + 7) / 8;
   return h * line;
 }
-#endif // LODEPNG_COMPILE_DECODER
-#endif // LODEPNG_COMPILE_PNG
 
 #ifdef LODEPNG_COMPILE_ANCILLARY_CHUNKS
 
@@ -2901,12 +2859,10 @@ static void addColorBits(unsigned char* out, size_t index, unsigned bits, unsign
 
 typedef struct ColorTree ColorTree;
 
-/*
-One node of a color tree
-This is the data structure used to count the number of unique colors and to get a palette
-index for a color. It's like an octree, but because the alpha channel is used too, each
-node has 16 instead of 8 children.
-*/
+// One node of a color tree
+// This is the data structure used to count the number of unique colors and to get a palette
+// index for a color. It's like an octree, but because the alpha channel is used too, each
+// node has 16 instead of 8 children.
 struct ColorTree
 {
   ColorTree* children[16]; // up to 16 pointers to ColorTree of next level
@@ -2946,12 +2902,10 @@ static int color_tree_get(ColorTree* tree, unsigned char r, unsigned char g, uns
   return tree ? tree->index : -1;
 }
 
-#ifdef LODEPNG_COMPILE_ENCODER
 static int color_tree_has(ColorTree* tree, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
   return color_tree_get(tree, r, g, b, a) >= 0;
 }
-#endif // LODEPNG_COMPILE_ENCODER
 
 /*color is not allowed to already exist.
 Index should be >= 0 (it's signed to be compatible with using -1 for "doesn't exist")*/
@@ -3449,7 +3403,6 @@ unsigned lodepng_convert(unsigned char* out, const unsigned char* in,
   return error;
 }
 
-#ifdef LODEPNG_COMPILE_ENCODER
 
 void lodepng_color_profile_init(LodePNGColorProfile* profile)
 {
@@ -3746,8 +3699,6 @@ unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
   return error;
 }
 
-#endif //  #ifdef LODEPNG_COMPILE_ENCODER 
-
 /*
 Paeth predicter, used by PNG filter type 4
 The parameters are of type short, but should come from unsigned chars, the shorts
@@ -3814,7 +3765,6 @@ static void Adam7_getpassvalues(unsigned passw[7], unsigned passh[7], size_t fil
   }
 }
 
-#ifdef LODEPNG_COMPILE_DECODER
 
 //  ////////////////////////////////////////////////////////////////////////// 
 //  / PNG Decoder                                                            / 
@@ -4720,7 +4670,6 @@ unsigned lodepng_decode24(unsigned char** out, unsigned* w, unsigned* h, const u
   return lodepng_decode_memory(out, w, h, in, insize, LCT_RGB, 8);
 }
 
-#ifdef LODEPNG_COMPILE_DISK
 unsigned lodepng_decode_file(unsigned char** out, unsigned* w, unsigned* h, const char* filename,
                              LodePNGColorType colortype, unsigned bitdepth)
 {
@@ -4742,7 +4691,6 @@ unsigned lodepng_decode24_file(unsigned char** out, unsigned* w, unsigned* h, co
 {
   return lodepng_decode_file(out, w, h, filename, LCT_RGB, 8);
 }
-#endif // LODEPNG_COMPILE_DISK
 
 void lodepng_decoder_settings_init(LodePNGDecoderSettings* settings)
 {
@@ -4757,18 +4705,11 @@ void lodepng_decoder_settings_init(LodePNGDecoderSettings* settings)
   lodepng_decompress_settings_init(&settings->zlibsettings);
 }
 
-#endif // LODEPNG_COMPILE_DECODER
-
-#if defined(LODEPNG_COMPILE_DECODER) || defined(LODEPNG_COMPILE_ENCODER)
 
 void lodepng_state_init(LodePNGState* state)
 {
-#ifdef LODEPNG_COMPILE_DECODER
   lodepng_decoder_settings_init(&state->decoder);
-#endif // LODEPNG_COMPILE_DECODER
-#ifdef LODEPNG_COMPILE_ENCODER
   lodepng_encoder_settings_init(&state->encoder);
-#endif // LODEPNG_COMPILE_ENCODER
   lodepng_color_mode_init(&state->info_raw);
   lodepng_info_init(&state->info_png);
   state->error = 1;
@@ -4790,9 +4731,6 @@ void lodepng_state_copy(LodePNGState* dest, const LodePNGState* source)
   dest->error = lodepng_info_copy(&dest->info_png, &source->info_png); if(dest->error) return;
 }
 
-#endif //  defined(LODEPNG_COMPILE_DECODER) || defined(LODEPNG_COMPILE_ENCODER) 
-
-#ifdef LODEPNG_COMPILE_ENCODER
 
 //  ////////////////////////////////////////////////////////////////////////// 
 //  / PNG Encoder                                                            / 
@@ -5790,7 +5728,6 @@ unsigned lodepng_encode24(unsigned char** out, size_t* outsize, const unsigned c
   return lodepng_encode_memory(out, outsize, image, w, h, LCT_RGB, 8);
 }
 
-#ifdef LODEPNG_COMPILE_DISK
 unsigned lodepng_encode_file(const char* filename, const unsigned char* image, unsigned w, unsigned h,
                              LodePNGColorType colortype, unsigned bitdepth)
 {
@@ -5811,7 +5748,6 @@ unsigned lodepng_encode24_file(const char* filename, const unsigned char* image,
 {
   return lodepng_encode_file(filename, image, w, h, LCT_RGB, 8);
 }
-#endif // LODEPNG_COMPILE_DISK
 
 void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings)
 {
@@ -5826,9 +5762,6 @@ void lodepng_encoder_settings_init(LodePNGEncoderSettings* settings)
   settings->text_compression = 1;
 #endif // LODEPNG_COMPILE_ANCILLARY_CHUNKS
 }
-
-#endif // LODEPNG_COMPILE_ENCODER
-#endif // LODEPNG_COMPILE_PNG
 
 #ifdef LODEPNG_COMPILE_ERROR_TEXT
 // This returns the description of a numerical error code in English. This is also

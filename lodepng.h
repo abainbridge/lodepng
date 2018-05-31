@@ -25,40 +25,14 @@
 
 #include <string.h> // for size_t
 
-/*
-The following #defines are used to create code sections. They can be disabled
-to disable code sections, which can give faster compile time and smaller binary.
-The "NO_COMPILE" defines are designed to be used to pass as defines to the
-compiler command to disable them without modifying this header, e.g.
--DLODEPNG_NO_COMPILE_ZLIB for gcc.
-In addition to those below, you can also define LODEPNG_NO_COMPILE_CRC to
-allow implementing a custom lodepng_crc32.
-*/
+// The following #defines are used to create code sections. They can be disabled
+// to disable code sections, which can give faster compile time and smaller binary.
 
-// png encoder and png decoder
-#ifndef LODEPNG_NO_COMPILE_PNG
-#define LODEPNG_COMPILE_PNG
-#endif
-// deflate&zlib decoder and png decoder
-#ifndef LODEPNG_NO_COMPILE_DECODER
-#define LODEPNG_COMPILE_DECODER
-#endif
-// deflate&zlib encoder and png encoder
-#ifndef LODEPNG_NO_COMPILE_ENCODER
-#define LODEPNG_COMPILE_ENCODER
-#endif
-// the optional built in harddisk file loading and saving functions
-#ifndef LODEPNG_NO_COMPILE_DISK
-#define LODEPNG_COMPILE_DISK
-#endif
 // support for chunks other than IHDR, IDAT, PLTE, tRNS, IEND: ancillary and unknown chunks
-#ifndef LODEPNG_NO_COMPILE_ANCILLARY_CHUNKS
 //#define LODEPNG_COMPILE_ANCILLARY_CHUNKS
-#endif
+
 // ability to convert error numerical codes to English text string
-#ifndef LODEPNG_NO_COMPILE_ERROR_TEXT
 #define LODEPNG_COMPILE_ERROR_TEXT
-#endif
 
 // The PNG color types (also used for raw).
 typedef enum LodePNGColorType
