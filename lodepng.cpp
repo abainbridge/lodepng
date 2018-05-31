@@ -1,27 +1,25 @@
-/*
-LodePNG version 20180326
-
-Copyright (c) 2005-2018 Lode Vandevenne
-
-This software is provided 'as-is', without any express or implied
-warranty. In no event will the authors be held liable for any damages
-arising from the use of this software.
-
-Permission is granted to anyone to use this software for any purpose,
-including commercial applications, and to alter it and redistribute it
-freely, subject to the following restrictions:
-
-    1. The origin of this software must not be misrepresented; you must not
-    claim that you wrote the original software. If you use this software
-    in a product, an acknowledgment in the product documentation would be
-    appreciated but is not required.
-
-    2. Altered source versions must be plainly marked as such, and must not be
-    misrepresented as being the original software.
-
-    3. This notice may not be removed or altered from any source
-    distribution.
-*/
+// LodePNG version 20180326
+// 
+// Copyright (c) 2005-2018 Lode Vandevenne
+// 
+// This software is provided 'as-is', without any express or implied
+// warranty. In no event will the authors be held liable for any damages
+// arising from the use of this software.
+// 
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+// 
+//     1. The origin of this software must not be misrepresented; you must not
+//     claim that you wrote the original software. If you use this software
+//     in a product, an acknowledgment in the product documentation would be
+//     appreciated but is not required.
+// 
+//     2. Altered source versions must be plainly marked as such, and must not be
+//     misrepresented as being the original software.
+// 
+//     3. This notice may not be removed or altered from any source
+//     distribution.
 
 #include "lodepng.h"
 
@@ -30,16 +28,11 @@ freely, subject to the following restrictions:
 #include <stdlib.h>
 
 
-const char* LODEPNG_VERSION_STRING = "20180326";
-
-/*
-This source file is built up in the following large parts. The code sections
-with the "LODEPNG_COMPILE_" #defines divide this up further in an intermixed way.
--Tools for C and common code for PNG and Zlib
--C Code for Zlib (huffman, deflate, ...)
--C Code for PNG (file format chunks, adam7, PNG filters, color conversions, ...)
--The C++ wrapper around all of the above
-*/
+// This source file is built up in the following large parts. The code sections
+// with the "LODEPNG_COMPILE_" #defines divide this up further in an intermixed way.
+// -Tools for C and common code for PNG and Zlib
+// -C Code for Zlib (huffman, deflate, ...)
+// -C Code for PNG (file format chunks, adam7, PNG filters, color conversions, ...)
 
 
 // ////////////////////////////////////////////////////////////////////////// 
@@ -85,14 +78,12 @@ Example: if(!uivector_resizev(&frequencies_ll, 286, 0)) ERROR_BREAK(83);
   return;\
 }
 
-/*
-About uivector, ucvector and string:
--All of them wrap dynamic arrays or text strings in a similar way.
--LodePNG was originally written in C++. The vectors replace the std::vectors that were used in the C++ version.
--The string tools are made to avoid problems with compilers that declare things like strncat as deprecated.
--They're not used in the interface, only internally in this file as static functions.
--As with many other structs in this file, the init and cleanup functions serve as ctor and dtor.
-*/
+// About uivector, ucvector and string:
+// -All of them wrap dynamic arrays or text strings in a similar way.
+// -LodePNG was originally written in C++. The vectors replace the std::vectors that were used in the C++ version.
+// -The string tools are made to avoid problems with compilers that declare things like strncat as deprecated.
+// -They're not used in the interface, only internally in this file as static functions.
+// -As with many other structs in this file, the init and cleanup functions serve as ctor and dtor.
 
 // dynamic vector of unsigned ints
 typedef struct uivector
@@ -251,9 +242,7 @@ static void lodepng_add32bitInt(ucvector* buffer, unsigned value)
 //  returns negative value on error. This should be pure C compatible, so no fstat. 
 static long lodepng_filesize(const char* filename)
 {
-  FILE* file;
-  long size;
-  file = fopen(filename, "rb");
+  FILE *file = fopen(filename, "rb");
   if(!file) return -1;
 
   if(fseek(file, 0, SEEK_END) != 0)
@@ -262,7 +251,7 @@ static long lodepng_filesize(const char* filename)
     return -1;
   }
 
-  size = ftell(file);
+  long size = ftell(file);
   //  It may give LONG_MAX as directory size, this is invalid for us. 
   if(size == LONG_MAX) size = -1;
 
@@ -273,12 +262,10 @@ static long lodepng_filesize(const char* filename)
 //  load file into buffer that already has the correct allocated size. Returns error code.
 static unsigned lodepng_buffer_file(unsigned char* out, size_t size, const char* filename)
 {
-  FILE* file;
-  size_t readsize;
-  file = fopen(filename, "rb");
+  FILE *file = fopen(filename, "rb");
   if(!file) return 78;
 
-  readsize = fread(out, 1, size, file);
+  size_t readsize = fread(out, 1, size, file);
   fclose(file);
 
   if (readsize != size) return 78;
@@ -300,10 +287,9 @@ unsigned lodepng_load_file(unsigned char** out, size_t* outsize, const char* fil
 // write given buffer to the file, overwriting the file, it doesn't append to it.
 unsigned lodepng_save_file(const unsigned char* buffer, size_t buffersize, const char* filename)
 {
-  FILE* file;
-  file = fopen(filename, "wb" );
+  FILE* file = fopen(filename, "wb");
   if(!file) return 79;
-  fwrite((char*)buffer , 1 , buffersize, file);
+  fwrite((char*)buffer, 1 ,buffersize, file);
   fclose(file);
   return 0;
 }
@@ -390,15 +376,13 @@ static const unsigned DISTANCEEXTRA[30]
        8,    9,    9,   10,   10,   11,   11,   12,    12,    13,    13};
 
 /*the order in which "code length alphabet code lengths" are stored, out of this
-the huffman tree of the dynamic huffman tree lengths is generated*/
+the Huffman tree of the dynamic Huffman tree lengths is generated*/
 static const unsigned CLCL_ORDER[NUM_CODE_LENGTH_CODES]
   = {16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
 
 //  ////////////////////////////////////////////////////////////////////////// 
 
-/*
-Huffman tree struct, containing multiple representations of the tree
-*/
+// Huffman tree struct, containing multiple representations of the tree
 typedef struct HuffmanTree
 {
   unsigned* tree2d;
@@ -476,8 +460,8 @@ static unsigned HuffmanTree_make2DTree(HuffmanTree* tree)
         }
         else
         {
-          /*put address of the next step in here, first that address has to be found of course
-          (it's just nodefilled + 1)...*/
+          // put address of the next step in here, first that address has to be found of course
+          // (it's just nodefilled + 1)...
           ++nodefilled;
           // addresses encoded with numcodes added to it
           tree->tree2d[2 * treepos + bit] = nodefilled + tree->numcodes;
@@ -496,17 +480,14 @@ static unsigned HuffmanTree_make2DTree(HuffmanTree* tree)
   return 0;
 }
 
-/*
-Second step for the ...makeFromLengths and ...makeFromFrequencies functions.
-numcodes, lengths and maxbitlen must already be filled in correctly. return
-value is error.
-*/
+// Second step for the ...makeFromLengths and ...makeFromFrequencies functions.
+// numcodes, lengths and maxbitlen must already be filled in correctly. return
+// value is error.
 static unsigned HuffmanTree_makeFromLengths2(HuffmanTree* tree)
 {
   uivector blcount;
   uivector nextcode;
   unsigned error = 0;
-  unsigned bits, n;
 
   uivector_init(&blcount);
   uivector_init(&nextcode);
@@ -521,14 +502,14 @@ static unsigned HuffmanTree_makeFromLengths2(HuffmanTree* tree)
   if(!error)
   {
     // step 1: count number of instances of each code length
-    for(bits = 0; bits != tree->numcodes; ++bits) ++blcount.data[tree->lengths[bits]];
+    for(unsigned bits = 0; bits != tree->numcodes; ++bits) ++blcount.data[tree->lengths[bits]];
     // step 2: generate the nextcode values
-    for(bits = 1; bits <= tree->maxbitlen; ++bits)
+    for(unsigned bits = 1; bits <= tree->maxbitlen; ++bits)
     {
       nextcode.data[bits] = (nextcode.data[bits - 1] + blcount.data[bits - 1]) << 1;
     }
     // step 3: generate all the codes
-    for(n = 0; n != tree->numcodes; ++n)
+    for(unsigned n = 0; n != tree->numcodes; ++n)
     {
       if(tree->lengths[n] != 0) tree->tree1d[n] = nextcode.data[tree->lengths[n]]++;
     }
@@ -541,18 +522,15 @@ static unsigned HuffmanTree_makeFromLengths2(HuffmanTree* tree)
   else return error;
 }
 
-/*
-given the code lengths (as stored in the PNG file), generate the tree as defined
-by Deflate. maxbitlen is the maximum bits that a code in the tree can have.
-return value is error.
-*/
+// given the code lengths (as stored in the PNG file), generate the tree as defined
+// by Deflate. maxbitlen is the maximum bits that a code in the tree can have.
+// return value is error.
 static unsigned HuffmanTree_makeFromLengths(HuffmanTree* tree, const unsigned* bitlen,
                                             size_t numcodes, unsigned maxbitlen)
 {
-  unsigned i;
   tree->lengths = (unsigned*)malloc(numcodes * sizeof(unsigned));
   if(!tree->lengths) return 83; // alloc fail
-  for(i = 0; i != numcodes; ++i) tree->lengths[i] = bitlen[i];
+  for(unsigned i = 0; i != numcodes; ++i) tree->lengths[i] = bitlen[i];
   tree->numcodes = (unsigned)numcodes; // number of symbols
   tree->maxbitlen = maxbitlen;
   return HuffmanTree_makeFromLengths2(tree);
@@ -828,10 +806,8 @@ static unsigned generateFixedDistanceTree(HuffmanTree* tree)
   return error;
 }
 
-/*
-returns the code, or (unsigned)(-1) if error happened
-inbitlength is the length of the complete buffer, in bits (so its byte length times 8)
-*/
+// returns the code, or (unsigned)(-1) if error happened
+// inbitlength is the length of the complete buffer, in bits (so its byte length times 8)
 static unsigned huffmanDecodeSymbol(const unsigned char* in, size_t* bp,
                                     const HuffmanTree* codetree, size_t inbitlength)
 {
@@ -1110,12 +1086,11 @@ static unsigned inflateHuffmanBlock(ucvector* out, const unsigned char* in, size
 
 static unsigned inflateNoCompression(ucvector* out, const unsigned char* in, size_t* bp, size_t* pos, size_t inlength)
 {
-  size_t p;
   unsigned LEN, NLEN, n, error = 0;
 
   // go to first boundary of byte
   while(((*bp) & 0x7) != 0) ++(*bp);
-  p = (*bp) / 8; // byte position
+  size_t p = (*bp) / 8; // byte position
 
   // read LEN (2 bytes) and NLEN (2 bytes)
   if(p + 4 >= inlength) return 52; // error, bit pointer will jump past memory
@@ -1137,8 +1112,7 @@ static unsigned inflateNoCompression(ucvector* out, const unsigned char* in, siz
 }
 
 static unsigned lodepng_inflatev(ucvector* out,
-                                 const unsigned char* in, size_t insize,
-                                 const LodePNGDecompressSettings* settings)
+                                 const unsigned char* in, size_t insize)
 {
   // bit pointer in the "in" data, current byte is bp >> 3, current bit is bp & 0x7 (from lsb to msb of the byte)
   size_t bp = 0;
@@ -1146,14 +1120,11 @@ static unsigned lodepng_inflatev(ucvector* out,
   size_t pos = 0; // byte position in the out buffer
   unsigned error = 0;
 
-  (void)settings;
-
   while(!BFINAL)
   {
-    unsigned BTYPE;
     if(bp + 2 >= insize * 8) return 52; // error, bit pointer will jump past memory
     BFINAL = readBitFromStream(&bp, in);
-    BTYPE = 1u * readBitFromStream(&bp, in);
+    unsigned BTYPE = 1u * readBitFromStream(&bp, in);
     BTYPE += 2u * readBitFromStream(&bp, in);
 
     if(BTYPE == 3) return 20; // error: invalid BTYPE
@@ -1167,31 +1138,16 @@ static unsigned lodepng_inflatev(ucvector* out,
 }
 
 unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
-                         const unsigned char* in, size_t insize,
-                         const LodePNGDecompressSettings* settings)
+                         const unsigned char* in, size_t insize)
 {
-  unsigned error;
   ucvector v;
   ucvector_init_buffer(&v, *out, *outsize);
-  error = lodepng_inflatev(&v, in, insize, settings);
+  unsigned error = lodepng_inflatev(&v, in, insize);
   *out = v.data;
   *outsize = v.size;
   return error;
 }
 
-static unsigned inflate(unsigned char** out, size_t* outsize,
-                        const unsigned char* in, size_t insize,
-                        const LodePNGDecompressSettings* settings)
-{
-  if(settings->custom_inflate)
-  {
-    return settings->custom_inflate(out, outsize, in, insize, settings);
-  }
-  else
-  {
-    return lodepng_inflate(out, outsize, in, insize, settings);
-  }
-}
 
 //  ////////////////////////////////////////////////////////////////////////// 
 //  / Deflator (Compressor)                                                  / 
@@ -1342,15 +1298,13 @@ static void updateHashChain(Hash* hash, size_t wpos, unsigned hashval, unsigned 
   hash->headz[numzeros] = (unsigned)wpos;
 }
 
-/*
-LZ77-encode the data. Return value is error code. The input are raw bytes, the output
-is in the form of unsigned integers with codes representing for example literal bytes, or
-length/distance pairs.
-It uses a hash table technique to let it encode faster. When doing LZ77 encoding, a
-sliding window (of windowsize) is used, and all past bytes in that window can be used as
-the "dictionary". A brute force search through all possible distances would be slow, and
-this hash technique is one out of several ways to speed this up.
-*/
+// LZ77-encode the data. Return value is error code. The input are raw bytes, the output
+// is in the form of unsigned integers with codes representing for example literal bytes, or
+// length/distance pairs.
+// It uses a hash table technique to let it encode faster. When doing LZ77 encoding, a
+// sliding window (of windowsize) is used, and all past bytes in that window can be used as
+// the "dictionary". A brute force search through all possible distances would be slow, and
+// this hash technique is one out of several ways to speed this up.
 static unsigned encodeLZ77(uivector* out, Hash* hash,
                            const unsigned char* in, size_t inpos, size_t insize, unsigned windowsize,
                            unsigned minmatch, unsigned nicematch, unsigned lazymatching)
@@ -1939,27 +1893,12 @@ unsigned lodepng_deflate(unsigned char** out, size_t* outsize,
                          const unsigned char* in, size_t insize,
                          const LodePNGCompressSettings* settings)
 {
-  unsigned error;
   ucvector v;
   ucvector_init_buffer(&v, *out, *outsize);
-  error = lodepng_deflatev(&v, in, insize, settings);
+  unsigned error = lodepng_deflatev(&v, in, insize, settings);
   *out = v.data;
   *outsize = v.size;
   return error;
-}
-
-static unsigned deflate(unsigned char** out, size_t* outsize,
-                        const unsigned char* in, size_t insize,
-                        const LodePNGCompressSettings* settings)
-{
-  if(settings->custom_deflate)
-  {
-    return settings->custom_deflate(out, outsize, in, insize, settings);
-  }
-  else
-  {
-    return lodepng_deflate(out, outsize, in, insize, settings);
-  }
 }
 
 
@@ -1969,8 +1908,8 @@ static unsigned deflate(unsigned char** out, size_t* outsize,
 
 static unsigned update_adler32(unsigned adler, const unsigned char* data, unsigned len)
 {
-   unsigned s1 = adler & 0xffff;
-   unsigned s2 = (adler >> 16) & 0xffff;
+  unsigned s1 = adler & 0xffff;
+  unsigned s2 = (adler >> 16) & 0xffff;
 
   while(len > 0)
   {
@@ -2001,10 +1940,9 @@ static unsigned adler32(const unsigned char* data, unsigned len)
 //  ////////////////////////////////////////////////////////////////////////// 
 
 unsigned lodepng_zlib_decompress(unsigned char** out, size_t* outsize, const unsigned char* in,
-                                 size_t insize, const LodePNGDecompressSettings* settings)
+                                 size_t insize)
 {
   unsigned error = 0;
-  unsigned CM, CINFO, FDICT;
 
   if(insize < 2) return 53; // error, size of zlib data too small
   // read information from zlib header
@@ -2014,10 +1952,10 @@ unsigned lodepng_zlib_decompress(unsigned char** out, size_t* outsize, const uns
     return 24;
   }
 
-  CM = in[0] & 15;
-  CINFO = (in[0] >> 4) & 15;
+  unsigned CM = in[0] & 15;
+  unsigned CINFO = (in[0] >> 4) & 15;
   // FCHECK = in[1] & 31;*/ /*FCHECK is already tested above
-  FDICT = (in[1] >> 5) & 1;
+  unsigned FDICT = (in[1] >> 5) & 1;
   // FLEVEL = (in[1] >> 6) & 3;*/ /*FLEVEL is not used here
 
   if(CM != 8 || CINFO > 7)
@@ -2032,30 +1970,10 @@ unsigned lodepng_zlib_decompress(unsigned char** out, size_t* outsize, const uns
     return 26;
   }
 
-  error = inflate(out, outsize, in + 2, insize - 2, settings);
+  error = lodepng_inflate(out, outsize, in + 2, insize - 2);
   if(error) return error;
 
-  if(!settings->ignore_adler32)
-  {
-    unsigned ADLER32 = lodepng_read32bitInt(&in[insize - 4]);
-    unsigned checksum = adler32(*out, (unsigned)(*outsize));
-    if(checksum != ADLER32) return 58; // error, adler checksum not correct, data must be corrupted
-  }
-
   return 0; // no error
-}
-
-static unsigned zlib_decompress(unsigned char** out, size_t* outsize, const unsigned char* in,
-                                size_t insize, const LodePNGDecompressSettings* settings)
-{
-  if(settings->custom_zlib)
-  {
-    return settings->custom_zlib(out, outsize, in, insize, settings);
-  }
-  else
-  {
-    return lodepng_zlib_decompress(out, outsize, in, insize, settings);
-  }
 }
 
 unsigned lodepng_zlib_compress(unsigned char** out, size_t* outsize, const unsigned char* in,
@@ -2083,7 +2001,7 @@ unsigned lodepng_zlib_compress(unsigned char** out, size_t* outsize, const unsig
   ucvector_push_back(&outv, (unsigned char)(CMFFLG >> 8));
   ucvector_push_back(&outv, (unsigned char)(CMFFLG & 255));
 
-  error = deflate(&deflatedata, &deflatesize, in, insize, settings);
+  error = lodepng_deflate(&deflatedata, &deflatesize, in, insize, settings);
 
   if(!error)
   {
@@ -2099,19 +2017,6 @@ unsigned lodepng_zlib_compress(unsigned char** out, size_t* outsize, const unsig
   return error;
 }
 
-//  compress using the default or custom zlib function 
-static unsigned zlib_compress(unsigned char** out, size_t* outsize, const unsigned char* in,
-                              size_t insize, const LodePNGCompressSettings* settings)
-{
-  if(settings->custom_zlib)
-  {
-    return settings->custom_zlib(out, outsize, in, insize, settings);
-  }
-  else
-  {
-    return lodepng_zlib_compress(out, outsize, in, insize, settings);
-  }
-}
 
 //  ////////////////////////////////////////////////////////////////////////// 
 
@@ -2127,25 +2032,9 @@ void lodepng_compress_settings_init(LodePNGCompressSettings* settings)
   settings->minmatch = 3;
   settings->nicematch = 128;
   settings->lazymatching = 1;
-
-  settings->custom_zlib = 0;
-  settings->custom_deflate = 0;
-  settings->custom_context = 0;
 }
 
-const LodePNGCompressSettings lodepng_default_compress_settings = {2, 1, DEFAULT_WINDOWSIZE, 3, 128, 1, 0, 0, 0};
-
-
-void lodepng_decompress_settings_init(LodePNGDecompressSettings* settings)
-{
-  settings->ignore_adler32 = 0;
-
-  settings->custom_zlib = 0;
-  settings->custom_inflate = 0;
-  settings->custom_context = 0;
-}
-
-const LodePNGDecompressSettings lodepng_default_decompress_settings = {0, 0, 0, 0};
+const LodePNGCompressSettings lodepng_default_compress_settings = {2, 1, DEFAULT_WINDOWSIZE, 3, 128, 1};
 
 
 //  ////////////////////////////////////////////////////////////////////////// 
@@ -2347,7 +2236,6 @@ unsigned lodepng_chunk_append(unsigned char** out, size_t* outlength, const unsi
 unsigned lodepng_chunk_create(unsigned char** out, size_t* outlength, unsigned length,
                               const char* type, const unsigned char* data)
 {
-  unsigned i;
   unsigned char *chunk, *new_buffer;
   size_t new_length = (*outlength) + length + 12;
   if(new_length < length + 12 || new_length < (*outlength)) return 77; // integer overflow happened
@@ -2367,7 +2255,7 @@ unsigned lodepng_chunk_create(unsigned char** out, size_t* outlength, unsigned l
   chunk[7] = (unsigned char)type[3];
 
   // 3: the data
-  for(i = 0; i != length; ++i) chunk[8 + i] = data[i];
+  for(unsigned i = 0; i != length; ++i) chunk[8 + i] = data[i];
 
   // 4: CRC (of the chunkname characters and the data)
   lodepng_chunk_generate_crc(chunk);
@@ -3447,11 +3335,9 @@ unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
   return error;
 }
 
-/*
-Paeth predicter, used by PNG filter type 4
-The parameters are of type short, but should come from unsigned chars, the shorts
-are only needed to make the paeth calculation correct.
-*/
+// Paeth predicter, used by PNG filter type 4
+// The parameters are of type short, but should come from unsigned chars, the shorts
+// are only needed to make the paeth calculation correct.
 static unsigned char paethPredictor(short a, short b, short c)
 {
   short pa = abs(b - c);
@@ -3470,21 +3356,19 @@ static const unsigned ADAM7_IY[7] = { 0, 0, 4, 0, 2, 0, 1 }; // y start values
 static const unsigned ADAM7_DX[7] = { 8, 8, 4, 4, 2, 2, 1 }; // x delta values
 static const unsigned ADAM7_DY[7] = { 8, 8, 8, 4, 4, 2, 2 }; // y delta values
 
-/*
-Outputs various dimensions and positions in the image related to the Adam7 reduced images.
-passw: output containing the width of the 7 passes
-passh: output containing the height of the 7 passes
-filter_passstart: output containing the index of the start and end of each
- reduced image with filter bytes
-padded_passstart output containing the index of the start and end of each
- reduced image when without filter bytes but with padded scanlines
-passstart: output containing the index of the start and end of each reduced
- image without padding between scanlines, but still padding between the images
-w, h: width and height of non-interlaced image
-bpp: bits per pixel
-"padded" is only relevant if bpp is less than 8 and a scanline or image does not
- end at a full byte
-*/
+// Outputs various dimensions and positions in the image related to the Adam7 reduced images.
+// passw: output containing the width of the 7 passes
+// passh: output containing the height of the 7 passes
+// filter_passstart: output containing the index of the start and end of each
+//  reduced image with filter bytes
+// padded_passstart output containing the index of the start and end of each
+//  reduced image when without filter bytes but with padded scanlines
+// passstart: output containing the index of the start and end of each reduced
+//  image without padding between scanlines, but still padding between the images
+// w, h: width and height of non-interlaced image
+// bpp: bits per pixel
+// "padded" is only relevant if bpp is less than 8 and a scanline or image does not
+//  end at a full byte
 static void Adam7_getpassvalues(unsigned passw[7], unsigned passh[7], size_t filter_passstart[8],
                                 size_t padded_passstart[8], size_t passstart[8], unsigned w, unsigned h, unsigned bpp)
 {
@@ -3562,16 +3446,6 @@ unsigned lodepng_inspect(unsigned* w, unsigned* h, LodePNGState* state,
   if(*w == 0 || *h == 0)
   {
     CERROR_RETURN_ERROR(state->error, 93);
-  }
-
-  if(!state->decoder.ignore_crc)
-  {
-    unsigned CRC = lodepng_read32bitInt(&in[29]);
-    unsigned checksum = lodepng_crc32(&in[12], 17);
-    if(CRC != checksum)
-    {
-      CERROR_RETURN_ERROR(state->error, 57); // invalid CRC
-    }
   }
 
   // error: only compression method 0 is allowed in the specification
@@ -3933,8 +3807,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
     // error: size of the in buffer too small to contain next chunk
     if((size_t)((chunk - in) + 12) > insize || chunk < in)
     {
-      if(state->decoder.ignore_end) break; // other errors may still happen though
-      CERROR_BREAK(state->error, 30);
+      break; // other errors may still happen though
     }
 
     // length of the data of the chunk, excluding the length bytes, chunk type and CRC bytes
@@ -3942,8 +3815,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
     // error: chunk length larger than the max PNG chunk size
     if(chunkLength > 2147483647)
     {
-      if(state->decoder.ignore_end) break; // other errors may still happen though
-      CERROR_BREAK(state->error, 63);
+      break; // other errors may still happen though
     }
 
     if((size_t)((chunk - in) + chunkLength + 12) > insize || (chunk + chunkLength + 12) < in)
@@ -3980,17 +3852,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
     else // it's not an implemented chunk type, so ignore it: skip over the data
     {
       // error: unknown critical chunk (5th bit of first byte of chunk type is 0)
-      if(!state->decoder.ignore_critical && !lodepng_chunk_ancillary(chunk))
-      {
-        CERROR_BREAK(state->error, 69);
-      }
-
       unknown = 1;
-    }
-
-    if(!state->decoder.ignore_crc && !unknown) // check CRC if wanted, only on known chunk types
-    {
-      if(lodepng_chunk_check_crc(chunk)) CERROR_BREAK(state->error, 57); // invalid CRC
     }
 
     if(!IEND) chunk = lodepng_chunk_next_const(chunk);
@@ -4020,8 +3882,7 @@ static void decodeGeneric(unsigned char** out, unsigned* w, unsigned* h,
   if(!state->error && !ucvector_reserve(&scanlines, predict)) state->error = 83; // alloc fail
   if(!state->error)
   {
-    state->error = zlib_decompress(&scanlines.data, &scanlines.size, idat.data,
-                                   idat.size, &state->decoder.zlibsettings);
+    state->error = lodepng_zlib_decompress(&scanlines.data, &scanlines.size, idat.data, idat.size);
     if(!state->error && scanlines.size != predict) state->error = 91; // decompressed size doesn't match prediction
   }
   ucvector_cleanup(&idat);
@@ -4133,10 +3994,6 @@ unsigned lodepng_decode24_file(unsigned char** out, unsigned* w, unsigned* h, co
 void lodepng_decoder_settings_init(LodePNGDecoderSettings* settings)
 {
   settings->color_convert = 1;
-  settings->ignore_crc = 0;
-  settings->ignore_critical = 0;
-  settings->ignore_end = 0;
-  lodepng_decompress_settings_init(&settings->zlibsettings);
 }
 
 
@@ -4282,7 +4139,7 @@ static unsigned addChunk_IDAT(ucvector* out, const unsigned char* data, size_t d
 
   // compress with the Zlib compressor
   ucvector_init(&zlibdata);
-  error = zlib_compress(&zlibdata.data, &zlibdata.size, data, datasize, zlibsettings);
+  error = lodepng_zlib_compress(&zlibdata.data, &zlibdata.size, data, datasize, zlibsettings);
   if(!error) error = addChunk(out, "IDAT", zlibdata.data, zlibdata.size);
   ucvector_cleanup(&zlibdata);
 
@@ -4542,10 +4399,6 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
     better result with dynamic tree anyway. Using the fixed tree sometimes gives worse, but in rare
     cases better compression. It does make this a bit less slow, so it's worth doing this.*/
     zlibsettings.btype = 1;
-    /*a custom encoder likely doesn't read the btype setting and is optimized for complete PNG
-    images only, so disable it*/
-    zlibsettings.custom_zlib = 0;
-    zlibsettings.custom_deflate = 0;
     for(type = 0; type != 5; ++type)
     {
       attempt[type] = (unsigned char*)malloc(linebytes);
@@ -4561,7 +4414,7 @@ static unsigned filter(unsigned char* out, const unsigned char* in, unsigned w, 
         filterScanline(attempt[type], &in[y * linebytes], prevline, linebytes, bytewidth, type);
         size[type] = 0;
         dummy = 0;
-        zlib_compress(&dummy, &size[type], attempt[type], testsize, &zlibsettings);
+        lodepng_zlib_compress(&dummy, &size[type], attempt[type], testsize, &zlibsettings);
         free(dummy);
         // check if this is smallest size (or if type == 0 it's the first case so always store the values)
         if(type == 0 || size[type] < smallest)
@@ -4671,7 +4524,7 @@ static unsigned preProcessScanlines(unsigned char** out, size_t* outsize, const 
 {
   /*
   This function converts the pure 2D image with the PNG's colortype, into filtered-padded-interlaced data. Steps:
-  *) if no Adam7: 1) add padding bits (= posible extra bits per scanline if bpp < 8) 2) filter
+  *) if no Adam7: 1) add padding bits (= possible extra bits per scanline if bpp < 8) 2) filter
   *) if adam7: 1) Adam7_interlace 2) 7x add padding bits 3) 7x filter
   */
   unsigned bpp = lodepng_get_bpp(&info_png->color);

@@ -43,8 +43,8 @@ typedef enum LodePNGColorType
 
 // Converts PNG data in memory to raw pixel data.
 // out: Output parameter. Pointer to buffer that will contain the raw pixel data.
-//      After decoding, its size is w * h * (bytes per pixel) bytes larger than
-//      initially. Bytes per pixel depends on colortype and bitdepth.
+//      After decoding, its size is w * h * (bytes per pixel) bytes. Bytes per pixel 
+//      depends on colortype and bitdepth.
 //      Must be freed after usage with free(*out).
 //      Note: for 16-bit per channel colors, uses big endian format like PNG does.
 // w: Output parameter. Pointer to width of pixel data.
@@ -109,31 +109,6 @@ unsigned lodepng_encode32_file(const char* filename,
 const char* lodepng_error_text(unsigned code);
 #endif // LODEPNG_COMPILE_ERROR_TEXT
 
-// Settings for zlib decompression
-typedef struct LodePNGDecompressSettings LodePNGDecompressSettings;
-struct LodePNGDecompressSettings
-{
-  //  Check LodePNGDecoderSettings for more ignorable errors 
-  unsigned ignore_adler32; // if 1, continue and don't give an error message if the Adler32 checksum is corrupted
-
-  // use custom zlib decoder instead of built in one (default: null)
-  unsigned (*custom_zlib)(unsigned char**, size_t*,
-                          const unsigned char*, size_t,
-                          const LodePNGDecompressSettings*);
-  /*use custom deflate decoder instead of built in one (default: null)
-  if custom_zlib is used, custom_deflate is ignored since only the built in
-  zlib function will call custom_deflate*/
-  unsigned (*custom_inflate)(unsigned char**, size_t*,
-                             const unsigned char*, size_t,
-                             const LodePNGDecompressSettings*);
-
-  const void* custom_context; // optional custom settings for custom functions
-};
-
-extern const LodePNGDecompressSettings lodepng_default_decompress_settings;
-void lodepng_decompress_settings_init(LodePNGDecompressSettings* settings);
-
-
 // Settings for zlib compression. Tweaking these settings tweaks the balance
 // between speed and compression ratio.
 typedef struct LodePNGCompressSettings LodePNGCompressSettings;
@@ -146,19 +121,6 @@ struct LodePNGCompressSettings // deflate = compress
   unsigned minmatch; // minimum lz77 length. 3 is normally best, 6 can be better for some PNGs. Default: 0
   unsigned nicematch; // stop searching if >= this length found. Set to 258 for best compression. Default: 128
   unsigned lazymatching; // use lazy matching: better compression but a bit slower. Default: true
-
-  // use custom zlib encoder instead of built in one (default: null)
-  unsigned (*custom_zlib)(unsigned char**, size_t*,
-                          const unsigned char*, size_t,
-                          const LodePNGCompressSettings*);
-  /*use custom deflate encoder instead of built in one (default: null)
-  if custom_zlib is used, custom_deflate is ignored since only the built in
-  zlib function will call custom_deflate*/
-  unsigned (*custom_deflate)(unsigned char**, size_t*,
-                             const unsigned char*, size_t,
-                             const LodePNGCompressSettings*);
-
-  const void* custom_context; // optional custom settings for custom functions
 };
 
 extern const LodePNGCompressSettings lodepng_default_compress_settings;
@@ -274,13 +236,6 @@ unsigned lodepng_convert(unsigned char* out, const unsigned char* in,
 // decoder, but not the Info settings from the Info structs.
 typedef struct LodePNGDecoderSettings
 {
-  LodePNGDecompressSettings zlibsettings; // in here is the setting to ignore Adler32 checksums
-
-  //  Check LodePNGDecompressSettings for more ignorable errors 
-  unsigned ignore_crc; // ignore CRC checksums
-  unsigned ignore_critical; // ignore unknown critical chunks
-  unsigned ignore_end; // ignore issues at end of file if possible (missing IEND chunk, too large chunk, ...)
-
   unsigned color_convert; // whether to convert the PNG to the color type you want. Default: yes
 } LodePNGDecoderSettings;
 
@@ -293,13 +248,11 @@ typedef enum LodePNGFilterStrategy
   LFS_ZERO,
   // Use filter that gives minimum sum, as described in the official PNG filter heuristic.
   LFS_MINSUM,
-  /*Use the filter type that gives smallest Shannon entropy for this scanline. Depending
-  on the image, this is better or worse than minsum.*/
+  // Use the filter type that gives smallest Shannon entropy for this scanline. Depending
+  // on the image, this is better or worse than minsum.
   LFS_ENTROPY,
-  /*
-  Brute-force-search PNG filters by compressing each filter for each scanline.
-  Experimental, very slow, and only rarely gives better compression than MINSUM.
-  */
+  // Brute-force-search PNG filters by compressing each filter for each scanline.
+  // Experimental, very slow, and only rarely gives better compression than MINSUM.
   LFS_BRUTE_FORCE,
   // use predefined_filters buffer: you specify the filter type for each scanline
   LFS_PREDEFINED
@@ -462,16 +415,14 @@ unsigned lodepng_crc32(const unsigned char* buf, size_t len);
 
 // Inflate a buffer. Inflate is the decompression step of deflate. Out buffer must be freed after use.
 unsigned lodepng_inflate(unsigned char** out, size_t* outsize,
-                         const unsigned char* in, size_t insize,
-                         const LodePNGDecompressSettings* settings);
+                         const unsigned char* in, size_t insize);
 
 // Decompresses Zlib data. Reallocates the out buffer and appends the data. The
 // data must be according to the zlib specification.
 // Either, *out must be NULL and *outsize must be 0, or, *out must be a valid
 // buffer and *outsize its size in bytes. out must be freed by user after usage.
 unsigned lodepng_zlib_decompress(unsigned char** out, size_t* outsize,
-                                 const unsigned char* in, size_t insize,
-                                 const LodePNGDecompressSettings* settings);
+                                 const unsigned char* in, size_t insize);
 
 // Compresses data with Zlib. Reallocates the out buffer and appends the data.
 // Zlib adds a small header and trailer around the deflate data.
