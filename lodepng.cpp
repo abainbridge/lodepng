@@ -1815,8 +1815,8 @@ static unsigned adler32(const unsigned char* data, unsigned len)
 
     while (len > 0)
     {
-        // at least 5550 sums can be done before the sums overflow, saving a lot of module divisions
-        unsigned amount = len > 5550 ? 5550 : len;
+        // at least 5552 sums can be done before the sums overflow, saving a lot of module divisions
+        unsigned amount = len > 5552 ? 5552 : len;
         len -= amount;
         while (amount > 0)
         {
