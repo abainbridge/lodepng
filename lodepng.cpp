@@ -2142,11 +2142,25 @@ static void setBitOfReversedStream(size_t* bitpointer, unsigned char* bitstream,
 //  / PNG chunks                                                             / 
 //  ////////////////////////////////////////////////////////////////////////// 
 
+// The lodepng_chunk functions are normally not needed, except to traverse the
+// unknown chunks stored in the LodePNGInfo struct, or add new ones to it.
+// It also allows traversing the chunks of an encoded PNG file yourself.
+// 
+// PNG standard chunk naming conventions:
+// First byte: uppercase = critical, lowercase = ancillary
+// Second byte: uppercase = public, lowercase = private
+// Third byte: must be uppercase
+// Fourth byte: uppercase = unsafe to copy, lowercase = safe to copy
+
+// Gets the length of the data of the chunk. Total chunk length has 12 bytes more.
+// There must be at least 4 bytes to read from. If the result value is too large,
+// it may be corrupt data.
 unsigned lodepng_chunk_length(const unsigned char* chunk)
 {
   return lodepng_read32bitInt(&chunk[0]);
 }
 
+// puts the 4-byte type in null terminated string
 void lodepng_chunk_type(char type[5], const unsigned char* chunk)
 {
   unsigned i;
@@ -2154,27 +2168,32 @@ void lodepng_chunk_type(char type[5], const unsigned char* chunk)
   type[4] = 0; // null termination char
 }
 
+// check if the type is the given type
 unsigned char lodepng_chunk_type_equals(const unsigned char* chunk, const char* type)
 {
   if(strlen(type) != 4) return 0;
   return (chunk[4] == type[0] && chunk[5] == type[1] && chunk[6] == type[2] && chunk[7] == type[3]);
 }
 
+// 0: it's one of the critical chunk types, 1: it's an ancillary chunk (see PNG standard)
 unsigned char lodepng_chunk_ancillary(const unsigned char* chunk)
 {
   return((chunk[4] & 32) != 0);
 }
 
+// 0: public, 1: private (see PNG standard)
 unsigned char lodepng_chunk_private(const unsigned char* chunk)
 {
   return((chunk[6] & 32) != 0);
 }
 
+// 0: the chunk is unsafe to copy, 1: the chunk is safe to copy (see PNG standard)
 unsigned char lodepng_chunk_safetocopy(const unsigned char* chunk)
 {
   return((chunk[7] & 32) != 0);
 }
 
+// get pointer to the data of the chunk, where the input points to the header of the chunk
 unsigned char* lodepng_chunk_data(unsigned char* chunk)
 {
   return &chunk[8];
@@ -2185,6 +2204,7 @@ const unsigned char* lodepng_chunk_data_const(const unsigned char* chunk)
   return &chunk[8];
 }
 
+// returns 0 if the crc is correct, 1 if it's incorrect (0 for OK as usual!)
 unsigned lodepng_chunk_check_crc(const unsigned char* chunk)
 {
   unsigned length = lodepng_chunk_length(chunk);
@@ -2195,6 +2215,7 @@ unsigned lodepng_chunk_check_crc(const unsigned char* chunk)
   else return 0;
 }
 
+// generates the correct CRC from the data and puts it in the last 4 bytes of the chunk
 void lodepng_chunk_generate_crc(unsigned char* chunk)
 {
   unsigned length = lodepng_chunk_length(chunk);
@@ -2202,6 +2223,7 @@ void lodepng_chunk_generate_crc(unsigned char* chunk)
   lodepng_set32bitInt(chunk + 8 + length, CRC);
 }
 
+// iterate to next chunks. don't use on IEND chunk, as there is no next chunk then
 unsigned char* lodepng_chunk_next(unsigned char* chunk)
 {
   unsigned total_chunk_length = lodepng_chunk_length(chunk) + 12;
@@ -2214,6 +2236,9 @@ const unsigned char* lodepng_chunk_next_const(const unsigned char* chunk)
   return &chunk[total_chunk_length];
 }
 
+// Appends chunk to the data in out. The given chunk should already have its chunk header.
+// The out variable and outlength are updated to reflect the new reallocated buffer.
+// Returns error code (0 if it went ok)
 unsigned lodepng_chunk_append(unsigned char** out, size_t* outlength, const unsigned char* chunk)
 {
   unsigned i;
@@ -2233,6 +2258,10 @@ unsigned lodepng_chunk_append(unsigned char** out, size_t* outlength, const unsi
   return 0;
 }
 
+// Appends new chunk to out. The chunk to append is given by giving its length, type
+// and data separately. The type is a 4-letter string.
+// The out variable and outlength are updated to reflect the new reallocated buffer.
+// Return error code (0 if it went ok)
 unsigned lodepng_chunk_create(unsigned char** out, size_t* outlength, unsigned length,
                               const char* type, const unsigned char* data)
 {
@@ -3949,14 +3978,11 @@ unsigned lodepng_decode(unsigned char** out, unsigned* w, unsigned* h,
 unsigned lodepng_decode_memory(unsigned char** out, unsigned* w, unsigned* h, const unsigned char* in,
                                size_t insize, LodePNGColorType colortype, unsigned bitdepth)
 {
-  unsigned error;
   LodePNGState state;
   lodepng_state_init(&state);
   state.info_raw.colortype = colortype;
   state.info_raw.bitdepth = bitdepth;
-  error = lodepng_decode(out, w, h, &state, in, insize);
-  lodepng_state_cleanup(&state);
-  return error;
+  return lodepng_decode(out, w, h, &state, in, insize);
 }
 
 unsigned lodepng_decode32(unsigned char** out, unsigned* w, unsigned* h, const unsigned char* in, size_t insize)
@@ -4004,22 +4030,6 @@ void lodepng_state_init(LodePNGState* state)
   lodepng_color_mode_init(&state->info_raw);
   lodepng_info_init(&state->info_png);
   state->error = 1;
-}
-
-void lodepng_state_cleanup(LodePNGState* state)
-{
-  lodepng_color_mode_cleanup(&state->info_raw);
-  lodepng_info_cleanup(&state->info_png);
-}
-
-void lodepng_state_copy(LodePNGState* dest, const LodePNGState* source)
-{
-  lodepng_state_cleanup(dest);
-  *dest = *source;
-  lodepng_color_mode_init(&dest->info_raw);
-  lodepng_info_init(&dest->info_png);
-  dest->error = lodepng_color_mode_copy(&dest->info_raw, &source->info_raw); if(dest->error) return;
-  dest->error = lodepng_info_copy(&dest->info_png, &source->info_png); if(dest->error) return;
 }
 
 
@@ -4736,7 +4746,6 @@ unsigned lodepng_encode(unsigned char** out, size_t* outsize,
 unsigned lodepng_encode_memory(unsigned char** out, size_t* outsize, const unsigned char* image,
                                unsigned w, unsigned h, LodePNGColorType colortype, unsigned bitdepth)
 {
-  unsigned error;
   LodePNGState state;
   lodepng_state_init(&state);
   state.info_raw.colortype = colortype;
@@ -4744,9 +4753,7 @@ unsigned lodepng_encode_memory(unsigned char** out, size_t* outsize, const unsig
   state.info_png.color.colortype = colortype;
   state.info_png.color.bitdepth = bitdepth;
   lodepng_encode(out, outsize, image, w, h, &state);
-  error = state.error;
-  lodepng_state_cleanup(&state);
-  return error;
+  return state.error;
 }
 
 unsigned lodepng_encode32(unsigned char** out, size_t* outsize, const unsigned char* image, unsigned w, unsigned h)

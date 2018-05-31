@@ -326,8 +326,6 @@ typedef struct LodePNGState
 
 // init, cleanup and copy functions to use with this struct
 void lodepng_state_init(LodePNGState* state);
-void lodepng_state_cleanup(LodePNGState* state);
-void lodepng_state_copy(LodePNGState* dest, const LodePNGState* source);
 
 // Same as lodepng_decode_memory, but uses a LodePNGState to allow custom settings and
 // getting much more information about the PNG image and color mode.
@@ -335,75 +333,10 @@ unsigned lodepng_decode(unsigned char** out, unsigned* w, unsigned* h,
                         LodePNGState* state,
                         const unsigned char* in, size_t insize);
 
-// Read the PNG header, but not the actual data. This returns only the information
-// that is in the header chunk of the PNG, such as width, height and color type. The
-// information is placed in the info_png field of the LodePNGState.
-unsigned lodepng_inspect(unsigned* w, unsigned* h,
-                         LodePNGState* state,
-                         const unsigned char* in, size_t insize);
-
-
 // This function allocates the out buffer with standard malloc and stores the size in *outsize.
 unsigned lodepng_encode(unsigned char** out, size_t* outsize,
                         const unsigned char* image, unsigned w, unsigned h,
                         LodePNGState* state);
-
-// The lodepng_chunk functions are normally not needed, except to traverse the
-// unknown chunks stored in the LodePNGInfo struct, or add new ones to it.
-// It also allows traversing the chunks of an encoded PNG file yourself.
-// 
-// PNG standard chunk naming conventions:
-// First byte: uppercase = critical, lowercase = ancillary
-// Second byte: uppercase = public, lowercase = private
-// Third byte: must be uppercase
-// Fourth byte: uppercase = unsafe to copy, lowercase = safe to copy
-
-// Gets the length of the data of the chunk. Total chunk length has 12 bytes more.
-// There must be at least 4 bytes to read from. If the result value is too large,
-// it may be corrupt data.
-unsigned lodepng_chunk_length(const unsigned char* chunk);
-
-// puts the 4-byte type in null terminated string
-void lodepng_chunk_type(char type[5], const unsigned char* chunk);
-
-// check if the type is the given type
-unsigned char lodepng_chunk_type_equals(const unsigned char* chunk, const char* type);
-
-// 0: it's one of the critical chunk types, 1: it's an ancillary chunk (see PNG standard)
-unsigned char lodepng_chunk_ancillary(const unsigned char* chunk);
-
-// 0: public, 1: private (see PNG standard)
-unsigned char lodepng_chunk_private(const unsigned char* chunk);
-
-// 0: the chunk is unsafe to copy, 1: the chunk is safe to copy (see PNG standard)
-unsigned char lodepng_chunk_safetocopy(const unsigned char* chunk);
-
-// get pointer to the data of the chunk, where the input points to the header of the chunk
-unsigned char* lodepng_chunk_data(unsigned char* chunk);
-const unsigned char* lodepng_chunk_data_const(const unsigned char* chunk);
-
-// returns 0 if the crc is correct, 1 if it's incorrect (0 for OK as usual!)
-unsigned lodepng_chunk_check_crc(const unsigned char* chunk);
-
-// generates the correct CRC from the data and puts it in the last 4 bytes of the chunk
-void lodepng_chunk_generate_crc(unsigned char* chunk);
-
-// iterate to next chunks. don't use on IEND chunk, as there is no next chunk then
-unsigned char* lodepng_chunk_next(unsigned char* chunk);
-const unsigned char* lodepng_chunk_next_const(const unsigned char* chunk);
-
-// Appends chunk to the data in out. The given chunk should already have its chunk header.
-// The out variable and outlength are updated to reflect the new reallocated buffer.
-// Returns error code (0 if it went ok)
-unsigned lodepng_chunk_append(unsigned char** out, size_t* outlength, const unsigned char* chunk);
-
-// Appends new chunk to out. The chunk to append is given by giving its length, type
-// and data separately. The type is a 4-letter string.
-// The out variable and outlength are updated to reflect the new reallocated buffer.
-// Return error code (0 if it went ok)
-unsigned lodepng_chunk_create(unsigned char** out, size_t* outlength, unsigned length,
-                              const char* type, const unsigned char* data);
-
 
 // Calculate CRC32 of buffer
 unsigned lodepng_crc32(const unsigned char* buf, size_t len);
