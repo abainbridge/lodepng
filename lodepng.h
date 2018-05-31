@@ -115,7 +115,6 @@ typedef struct LodePNGCompressSettings LodePNGCompressSettings;
 struct LodePNGCompressSettings // deflate = compress
 {
   // LZ77 related settings
-  unsigned use_lz77; // whether or not to use LZ77. Should be 1 for proper compression.
   unsigned windowsize; // must be a power of two <= 32768. higher compresses more but is slower. Default value: 2048.
   unsigned minmatch; // minimum lz77 length. 3 is normally best, 6 can be better for some PNGs. Default: 0
   unsigned nicematch; // stop searching if >= this length found. Set to 258 for best compression. Default: 128
@@ -134,33 +133,29 @@ typedef struct LodePNGColorMode
   LodePNGColorType colortype; // color type, see PNG standard or documentation further in this header file
   unsigned bitdepth;  // bits per sample, see PNG standard or documentation further in this header file
 
-  /*
-  palette (PLTE and tRNS)
-
-  Dynamically allocated with the colors of the palette, including alpha.
-  When encoding a PNG, to store your colors in the palette of the LodePNGColorMode, first use
-  lodepng_palette_clear, then for each color use lodepng_palette_add.
-  If you encode an image without alpha with palette, don't forget to put value 255 in each A byte of the palette.
-
-  When decoding, by default you can ignore this palette, since LodePNG already
-  fills the palette colors in the pixels of the raw RGBA output.
-
-  The palette is only supported for color type 3.
-  */
+  // palette (PLTE and tRNS)
+  // 
+  // Dynamically allocated with the colors of the palette, including alpha.
+  // When encoding a PNG, to store your colors in the palette of the LodePNGColorMode, first use
+  // lodepng_palette_clear, then for each color use lodepng_palette_add.
+  // If you encode an image without alpha with palette, don't forget to put value 255 in each A byte of the palette.
+  // 
+  // When decoding, by default you can ignore this palette, since LodePNG already
+  // fills the palette colors in the pixels of the raw RGBA output.
+  // 
+  // The palette is only supported for color type 3.
   unsigned char* palette; // palette in RGBARGBA... order. When allocated, must be either 0, or have size 1024
   size_t palettesize; // palette size in number of colors (amount of bytes is 4 * palettesize)
   
-  /*
-  transparent color key (tRNS)
-
-  This color uses the same bit depth as the bitdepth value in this struct, which can be 1-bit to 16-bit.
-  For greyscale PNGs, r, g and b will all 3 be set to the same.
-
-  When decoding, by default you can ignore this information, since LodePNG sets
-  pixels with this key to transparent already in the raw RGBA output.
-
-  The color key is only supported for color types 0 and 2.
-  */
+  // transparent color key (tRNS)
+  // 
+  // This color uses the same bit depth as the bitdepth value in this struct, which can be 1-bit to 16-bit.
+  // For greyscale PNGs, r, g and b will all 3 be set to the same.
+  // 
+  // When decoding, by default you can ignore this information, since LodePNG sets
+  // pixels with this key to transparent already in the raw RGBA output.
+  // 
+  // The color key is only supported for color types 0 and 2.
   unsigned key_defined; // is a transparent color key given? 0 = false, 1 = true
   unsigned key_r;       // red/greyscale component of color key
   unsigned key_g;       // green component of color key
@@ -206,8 +201,6 @@ size_t lodepng_get_raw_size(unsigned w, unsigned h, const LodePNGColorMode* colo
 typedef struct LodePNGInfo
 {
   // header (IHDR), palette (PLTE) and transparency (tRNS) chunks
-  unsigned compression_method;// compression method of the original file. Always 0.
-  unsigned filter_method;     // filter method of the original file
   unsigned interlace_method;  // interlace method of the original file
   LodePNGColorMode color;     // color type and bits, palette and transparency of the PNG file
 } LodePNGInfo;
@@ -249,12 +242,7 @@ typedef enum LodePNGFilterStrategy
   LFS_MINSUM,
   // Use the filter type that gives smallest Shannon entropy for this scanline. Depending
   // on the image, this is better or worse than minsum.
-  LFS_ENTROPY,
-  // Brute-force-search PNG filters by compressing each filter for each scanline.
-  // Experimental, very slow, and only rarely gives better compression than MINSUM.
-  LFS_BRUTE_FORCE,
-  // use predefined_filters buffer: you specify the filter type for each scanline
-  LFS_PREDEFINED
+  LFS_ENTROPY
 } LodePNGFilterStrategy;
 
 /*Gives characteristics about the colors of the image, which helps decide which color model to use for encoding.
@@ -299,11 +287,6 @@ typedef struct LodePNGEncoderSettings
   /*Which filter strategy to use when not using zeroes due to filter_palette_zero.
   Set filter_palette_zero to 0 to ensure always using your chosen strategy. Default: LFS_MINSUM*/
   LodePNGFilterStrategy filter_strategy;
-  /*used if filter_strategy is LFS_PREDEFINED. In that case, this must point to a buffer with
-  the same length as the amount of scanlines in the image, and each value must <= 5. You
-  have to cleanup this buffer, LodePNG will never free it. Don't forget that filter_palette_zero
-  must be set to 0 to ensure this is also used on palette or low bitdepth images.*/
-  const unsigned char* predefined_filters;
 
   /*force creating a PLTE chunk if colortype is 2 or 6 (= a suggested palette).
   If colortype is 3, PLTE is _always_ created.*/
@@ -599,8 +582,6 @@ The following settings are supported (some are in sub-structs):
 *) auto_convert: when this option is enabled, the encoder will
 automatically choose the smallest possible color mode (including color key) that
 can encode the colors of all pixels without information loss.
-*) use_lz77: whether or not to use LZ77 for compressed block types. Should be
-   true for proper compression.
 *) windowsize: the window size used by the LZ77 encoder (1 - 32768). Has value
    2048 by default, but can be set to 32768 for better, but slow, compression.
 *) force_palette: if colortype is 2 or 6, you can make the encoder write a PLTE
@@ -1010,7 +991,6 @@ state.info_png....: no settings for decoder but ouput, see struct LodePNGInfo
 
 For encoding:
 
-state.encoder.zlibsettings.use_lz77: use LZ77 in compression
 state.encoder.zlibsettings.windowsize: tweak LZ77 windowsize
 state.encoder.zlibsettings.minmatch: tweak min LZ77 length to match
 state.encoder.zlibsettings.nicematch: tweak LZ77 match where to stop searching
