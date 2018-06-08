@@ -28,26 +28,23 @@
 #include <stdlib.h>
 
 
-// This source file is built up in the following large parts. The code sections
-// with the "LODEPNG_COMPILE_" #defines divide this up further in an intermixed way.
+// This source file is built up in the following large parts.
 // -Tools for C and common code for PNG and Zlib
 // -C Code for Zlib (huffman, deflate, ...)
 // -C Code for PNG (file format chunks, adam7, PNG filters, color conversions, ...)
 
 
-// ////////////////////////////////////////////////////////////////////////// 
-// ////////////////////////////////////////////////////////////////////////// 
-// // Tools for C, and common code for PNG and Zlib.                       // 
-// ////////////////////////////////////////////////////////////////////////// 
-// ////////////////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////////////////// 
+//// Tools for C, and common code for PNG and Zlib.                       // 
+//////////////////////////////////////////////////////////////////////////// 
+//////////////////////////////////////////////////////////////////////////// 
 
-/*
-Often in case of an error a value is assigned to a variable and then it breaks
-out of a loop (to go to the cleanup phase of a function). This macro does that.
-It makes the error handling code shorter and more readable.
-
-Example: if(!uivector_resizev(&frequencies_ll, 286, 0)) ERROR_BREAK(83);
-*/
+// Often in case of an error a value is assigned to a variable and then it breaks
+// out of a loop (to go to the cleanup phase of a function). This macro does that.
+// It makes the error handling code shorter and more readable.
+//
+// Example: if(!uivector_resizev(&frequencies_ll, 286, 0)) ERROR_BREAK(83);
 #define CERROR_BREAK(errorvar, code)\
 {\
   errorvar = code;\
@@ -289,7 +286,7 @@ unsigned lodepng_save_file(const unsigned char* buffer, size_t buffersize, const
 {
   FILE* file = fopen(filename, "wb");
   if(!file) return 79;
-  fwrite((char*)buffer, 1 ,buffersize, file);
+  fwrite((char*)buffer, 1, buffersize, file);
   fclose(file);
   return 0;
 }
@@ -312,14 +309,12 @@ unsigned lodepng_save_file(const unsigned char* buffer, size_t buffersize, const
 
 static void addBitsToStream(size_t* bitpointer, ucvector* bitstream, unsigned value, size_t nbits)
 {
-  size_t i;
-  for(i = 0; i != nbits; ++i) addBitToStream(bitpointer, bitstream, (unsigned char)((value >> i) & 1));
+  for(size_t i = 0; i != nbits; ++i) addBitToStream(bitpointer, bitstream, (unsigned char)((value >> i) & 1));
 }
 
 static void addBitsToStreamReversed(size_t* bitpointer, ucvector* bitstream, unsigned value, size_t nbits)
 {
-  size_t i;
-  for(i = 0; i != nbits; ++i) addBitToStream(bitpointer, bitstream, (unsigned char)((value >> (nbits - 1 - i)) & 1));
+  for(size_t i = 0; i != nbits; ++i) addBitToStream(bitpointer, bitstream, (unsigned char)((value >> (nbits - 1 - i)) & 1));
 }
 
 #define READBIT(bitpointer, bitstream) ((bitstream[bitpointer >> 3] >> (bitpointer & 0x7)) & (unsigned char)1)
@@ -429,16 +424,14 @@ static unsigned HuffmanTree_make2DTree(HuffmanTree* tree)
   tree->tree2d = (unsigned*)malloc(tree->numcodes * 2 * sizeof(unsigned));
   if(!tree->tree2d) return 83; // alloc fail
 
-  /*
-  convert tree1d[] to tree2d[][]. In the 2D array, a value of 32767 means
-  uninited, a value >= numcodes is an address to another bit, a value < numcodes
-  is a code. The 2 rows are the 2 possible bit values (0 or 1), there are as
-  many columns as codes - 1.
-  A good huffman tree has N * 2 - 1 nodes, of which N - 1 are internal nodes.
-  Here, the internal nodes are stored (what their 0 and 1 option point to).
-  There is only memory for such good tree currently, if there are more nodes
-  (due to too long length codes), error 55 will happen
-  */
+  // convert tree1d[] to tree2d[][]. In the 2D array, a value of 32767 means
+  // uninited, a value >= numcodes is an address to another bit, a value < numcodes
+  // is a code. The 2 rows are the 2 possible bit values (0 or 1), there are as
+  // many columns as codes - 1.
+  // A good huffman tree has N * 2 - 1 nodes, of which N - 1 are internal nodes.
+  // Here, the internal nodes are stored (what their 0 and 1 option point to).
+  // There is only memory for such good tree currently, if there are more nodes
+  // (due to too long length codes), error 55 will happen
   for(n = 0; n < tree->numcodes * 2; ++n)
   {
     tree->tree2d[n] = 32767; // 32767 here means the tree2d isn't filled there yet
@@ -536,8 +529,8 @@ static unsigned HuffmanTree_makeFromLengths(HuffmanTree* tree, const unsigned* b
   return HuffmanTree_makeFromLengths2(tree);
 }
 
-/*BPM: Boundary Package Merge, see "A Fast and Space-Economical Algorithm for Length-Limited Coding",
-Jyrki Katajainen, Alistair Moffat, Andrew Turpin, 1995.*/
+// BPM: Boundary Package Merge, see "A Fast and Space-Economical Algorithm for Length-Limited Coding",
+// Jyrki Katajainen, Alistair Moffat, Andrew Turpin, 1995.
 
 // chain node for boundary package merge
 typedef struct BPMNode
@@ -1815,7 +1808,7 @@ static unsigned adler32(const unsigned char* data, unsigned len)
 
     while (len > 0)
     {
-        // at least 5552 sums can be done before the sums overflow, saving a lot of module divisions
+        // at least 5550 sums can be done before the sums overflow, saving a lot of module divisions
         unsigned amount = len > 5552 ? 5552 : len;
         len -= amount;
         while (amount > 0)
@@ -2900,6 +2893,7 @@ static unsigned getValueRequiredBits(unsigned char value)
   return 8;
 }
 
+// Get a LodePNGColorProfile of the image.
 /*profile must already have been inited with mode.
 It's ok to set some parameters of profile to done already.*/
 unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
@@ -3786,18 +3780,12 @@ unsigned lodepng_decode32(unsigned char** out, unsigned* w, unsigned* h, const u
   return lodepng_decode_memory(out, w, h, in, insize, LCT_RGBA, 8);
 }
 
-unsigned lodepng_decode24(unsigned char** out, unsigned* w, unsigned* h, const unsigned char* in, size_t insize)
-{
-  return lodepng_decode_memory(out, w, h, in, insize, LCT_RGB, 8);
-}
-
 unsigned lodepng_decode_file(unsigned char** out, unsigned* w, unsigned* h, const char* filename,
                              LodePNGColorType colortype, unsigned bitdepth)
 {
   unsigned char* buffer = 0;
   size_t buffersize;
-  unsigned error;
-  error = lodepng_load_file(&buffer, &buffersize, filename);
+  unsigned error = lodepng_load_file(&buffer, &buffersize, filename);
   if(!error) error = lodepng_decode_memory(out, w, h, buffer, buffersize, colortype, bitdepth);
   free(buffer);
   return error;
@@ -3941,11 +3929,10 @@ static unsigned addChunk_IDAT(ucvector* out, const unsigned char* data, size_t d
                               LodePNGCompressSettings* zlibsettings)
 {
   ucvector zlibdata;
-  unsigned error = 0;
 
   // compress with the Zlib compressor
   ucvector_init(&zlibdata);
-  error = lodepng_zlib_compress(&zlibdata.data, &zlibdata.size, data, datasize, zlibsettings);
+  unsigned error = lodepng_zlib_compress(&zlibdata.data, &zlibdata.size, data, datasize, zlibsettings);
   if(!error) error = addChunk(out, "IDAT", zlibdata.data, zlibdata.size);
   ucvector_cleanup(&zlibdata);
 
@@ -3954,8 +3941,7 @@ static unsigned addChunk_IDAT(ucvector* out, const unsigned char* data, size_t d
 
 static unsigned addChunk_IEND(ucvector* out)
 {
-  unsigned error = 0;
-  error = addChunk(out, "IEND", 0, 0);
+  unsigned error = addChunk(out, "IEND", 0, 0);
   return error;
 }
 

@@ -111,15 +111,14 @@ const char* lodepng_error_text(unsigned code);
 
 // Settings for zlib compression. Tweaking these settings tweaks the balance
 // between speed and compression ratio.
-typedef struct LodePNGCompressSettings LodePNGCompressSettings;
-struct LodePNGCompressSettings // deflate = compress
+typedef struct // deflate = compress
 {
   // LZ77 related settings
   unsigned windowsize; // must be a power of two <= 32768. higher compresses more but is slower. Default value: 2048.
   unsigned minmatch; // minimum lz77 length. 3 is normally best, 6 can be better for some PNGs. Default: 0
   unsigned nicematch; // stop searching if >= this length found. Set to 258 for best compression. Default: 128
   unsigned lazymatching; // use lazy matching: better compression but a bit slower. Default: true
-};
+} LodePNGCompressSettings;
 
 extern const LodePNGCompressSettings lodepng_default_compress_settings;
 void lodepng_compress_settings_init(LodePNGCompressSettings* settings);
@@ -233,7 +232,6 @@ typedef struct LodePNGDecoderSettings
 
 void lodepng_decoder_settings_init(LodePNGDecoderSettings* settings);
 
-// automatically use color type with less bits per pixel if losslessly possible. Default: AUTO
 typedef enum LodePNGFilterStrategy
 {
   // every filter at zero
@@ -260,17 +258,6 @@ typedef struct LodePNGColorProfile
   unsigned bits; // bits per channel (not for palette). 1,2 or 4 for greyscale only. 16 if 16-bit per channel required.
 } LodePNGColorProfile;
 
-void lodepng_color_profile_init(LodePNGColorProfile* profile);
-
-// Get a LodePNGColorProfile of the image.
-unsigned lodepng_get_color_profile(LodePNGColorProfile* profile,
-                                   const unsigned char* image, unsigned w, unsigned h,
-                                   const LodePNGColorMode* mode_in);
-/*The function LodePNG uses internally to decide the PNG color with auto_convert.
-Chooses an optimal color model, e.g. grey if only grey pixels, palette if < 256 colors, ...*/
-unsigned lodepng_auto_choose_color(LodePNGColorMode* mode_out,
-                                   const unsigned char* image, unsigned w, unsigned h,
-                                   const LodePNGColorMode* mode_in);
 
 // Settings for the encoder.
 typedef struct LodePNGEncoderSettings
